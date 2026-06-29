@@ -7,7 +7,27 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <main class="game-shell">
+    <section class="start-screen" id="startScreen" aria-label="게임 시작 화면">
+      <div class="start-scene">
+        <div class="start-logo">
+          <p class="eyebrow">idle studio battle</p>
+          <h1>스튜디오 크루 RPG</h1>
+          <p>작은 개발사에서 시작해 팀을 모으고, 몰려오는 업무와 버그를 자동 전투로 처리하세요.</p>
+        </div>
+
+        <div class="start-preview" aria-hidden="true">
+          <img src="assets/player.svg" alt="" class="start-hero" />
+          <span class="start-shot"></span>
+          <img src="assets/enemy.svg" alt="" class="start-enemy start-enemy-a" />
+          <img src="assets/enemy.svg" alt="" class="start-enemy start-enemy-b" />
+          <img src="assets/enemy.svg" alt="" class="start-enemy start-enemy-c" />
+        </div>
+
+        <button id="startButton" class="start-button" type="button">게임 시작</button>
+      </div>
+    </section>
+
+    <main class="game-shell is-hidden" id="gameShell">
       <header class="top-bar">
         <div>
           <p class="eyebrow">위치: 사무실 1층</p>

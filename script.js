@@ -106,6 +106,9 @@ if (document.readyState === "loading") {
 function initGame() {
   refs = {
     allyLayer: document.querySelector("#allyLayer"),
+    startScreen: document.querySelector("#startScreen"),
+    gameShell: document.querySelector("#gameShell"),
+    startButton: document.querySelector("#startButton"),
     effectLayer: document.querySelector("#effectLayer"),
     goldText: document.querySelector("#goldText"),
     ideaText: document.querySelector("#ideaText"),
@@ -135,7 +138,6 @@ function initGame() {
 
   bindEvents();
   renderAll();
-  startLoop();
 }
 
 function bindEvents() {
@@ -160,6 +162,14 @@ function bindEvents() {
   });
   refs.saveButton.addEventListener("click", () => saveState("수동 저장 완료"));
   refs.resetButton.addEventListener("click", resetGame);
+  refs.startButton.addEventListener("click", startGame);
+}
+
+function startGame() {
+  refs.startScreen.classList.add("is-hidden");
+  refs.gameShell.classList.remove("is-hidden");
+  renderAll();
+  startLoop();
 }
 
 function startLoop() {

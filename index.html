@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>스튜디오 크루 RPG</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="game-shell">
+      <header class="top-bar">
+        <div>
+          <p class="eyebrow">위치: 사무실 1층</p>
+          <h1>스튜디오 크루 RPG</h1>
+        </div>
+        <div class="resource-row" aria-label="보유 자원">
+          <span><b id="goldText">0</b> 자금</span>
+          <span><b id="ideaText">0</b> 아이디어</span>
+          <span><b id="stageText">1</b> 스테이지</span>
+        </div>
+      </header>
+
+      <section class="battlefield" aria-label="전투 화면">
+        <div class="office-backdrop">
+          <span class="window"></span>
+          <span class="desk desk-left"></span>
+          <span class="desk desk-right"></span>
+          <span class="plant"></span>
+        </div>
+
+        <div class="hero-group" aria-label="아군 팀">
+          <img src="assets/player.svg" alt="주인공 개발자" class="hero-sprite" />
+          <div class="nameplate">
+            <strong id="companyName">1인 개발사</strong>
+            <span id="dpsText">초당 기여도 1</span>
+          </div>
+        </div>
+
+        <div id="enemy" class="enemy" aria-label="상대 프로젝트">
+          <img src="assets/enemy.svg" alt="버그 몬스터" class="enemy-sprite" />
+          <div class="enemy-card">
+            <strong id="enemyName">작은 버그</strong>
+            <div class="hp-bar" aria-label="상대 체력">
+              <span id="enemyHpBar"></span>
+            </div>
+            <small id="enemyHpText">10 / 10</small>
+          </div>
+        </div>
+      </section>
+
+      <section class="message-line" aria-live="polite">
+        <span id="battleLog">새 프로젝트가 도착했습니다.</span>
+        <button id="manualWorkButton" type="button">직접 처리</button>
+      </section>
+
+      <section class="panel-area">
+        <article class="tab-panel is-active" data-panel="battle">
+          <div class="stat-grid">
+            <div>
+              <span>팀 규모</span>
+              <strong id="teamCountText">1명</strong>
+            </div>
+            <div>
+              <span>클릭 기여도</span>
+              <strong id="clickPowerText">1</strong>
+            </div>
+            <div>
+              <span>처리한 업무</span>
+              <strong id="clearCountText">0건</strong>
+            </div>
+          </div>
+          <div class="action-row">
+            <button id="upgradePlayerButton" type="button">대표 역량 강화</button>
+            <button id="nextStageButton" type="button">다음 의뢰</button>
+          </div>
+        </article>
+
+        <article class="tab-panel" data-panel="recruit">
+          <div class="shop-list" id="recruitList"></div>
+        </article>
+
+        <article class="tab-panel" data-panel="tools">
+          <div class="shop-list" id="toolList"></div>
+        </article>
+
+        <article class="tab-panel" data-panel="timer">
+          <div class="timer-board">
+            <div>
+              <span>오늘 업무 시간</span>
+              <strong id="playTimeText">00:00</strong>
+            </div>
+            <div>
+              <span>다음 자동 처리</span>
+              <strong id="attackTimerText">1.0초</strong>
+            </div>
+          </div>
+        </article>
+
+        <article class="tab-panel" data-panel="settings">
+          <div class="settings-row">
+            <button id="saveButton" type="button">저장</button>
+            <button id="resetButton" type="button">초기화</button>
+          </div>
+          <p class="save-state" id="saveStateText">자동 저장 준비 완료</p>
+        </article>
+      </section>
+
+      <nav class="bottom-tabs" aria-label="게임 메뉴">
+        <button class="tab-button is-active" type="button" data-tab="battle">전투</button>
+        <button class="tab-button" type="button" data-tab="recruit">직군영입</button>
+        <button class="tab-button" type="button" data-tab="tools">보조도구</button>
+        <button class="tab-button" type="button" data-tab="timer">타이머</button>
+        <button class="tab-button" type="button" data-tab="settings">설정</button>
+      </nav>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>

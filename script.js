@@ -82,10 +82,10 @@ let state = loadState();
 let saveCooldown = 0;
 let lastTick = performance.now();
 let isSpawningNext = false;
-let nextAttackHint = 1;
+let nextAttackHint = 0.6;
 let lastRosterKey = "";
-const basicAttackTimers = {};
-const skillAttackTimers = {};
+let basicAttackCooldown = 0.6;
+let skillAttackCooldown = PLAYER_SKILL_RATE;
 
 const $ = (selector) => document.querySelector(selector);
 const battlefield = $("#battlefield");
@@ -225,7 +225,8 @@ function spawnEnemy() {
   state.enemyHp = hp;
   state.enemyX = ENEMY_SPAWN_X;
   isSpawningNext = false;
-  resetAttackTimers(true);
+  basicAttackCooldown = 0.4;
+  skillAttackCooldown = PLAYER_SKILL_RATE;
   enemy.classList.remove("is-defeated");
   log(`${getEnemyName()} 업무가 오른쪽에서 접근합니다.`);
 }
@@ -346,17 +347,6 @@ function pulseUnit(unitId, className, duration) {
   window.setTimeout(() => ally.classList.remove(className), duration);
 }
 
-function resetAttackTimers(ready = false) {
-  getUnits().forEach((unit) => {
-    basicAttackTimers[unit.id] = ready ? unit.attackRate : 0;
-    skillAttackTimers[unit.id] = ready ? getSkillRate(unit) : 0;
-  });
-}
-
-function getSkillRate(unit) {
-  return unit.id === "player" ? PLAYER_SKILL_RATE : Math.max(3.2, unit.attackRate * 3);
-}
-
 function getUnitPosition(unitId) {
   const index = getUnits().findIndex((unit) => unit.id === unitId);
   return {
@@ -373,8 +363,7 @@ function buyRecruit(id) {
 
   state.gold -= cost;
   state.recruits[id] = count + 1;
-  basicAttackTimers[id] = recruit.attackRate;
-  skillAttackTimers[id] = getSkillRate(recruit);
+  basicAttackCooldown = Math.min(basicAttackCooldown, 0.25);
   log(`${recruit.name} 영입 완료. 전투 화면에 배치되었습니다.`);
   render();
 }
@@ -500,36 +489,33 @@ function formatTime(seconds) {
   return `${minutes}:${rest}`;
 }
 
-function updateAttacks(delta) {
-  if (isSpawningNext) return;
-
+function updateAutoCombat(delta) {
   if (!canAttackEnemy()) {
     nextAttackHint = 1;
     return;
   }
 
-  let soonest = 9;
-  getUnits().forEach((unit) => {
-    const basicRate = unit.attackRate;
-    const skillRate = getSkillRate(unit);
+  basicAttackCooldown -= delta;
+  skillAttackCooldown -= delta;
 
-    basicAttackTimers[unit.id] = (basicAttackTimers[unit.id] || 0) + delta;
-    skillAttackTimers[unit.id] = (skillAttackTimers[unit.id] || 0) + delta;
+  if (basicAttackCooldown <= 0) {
+    basicAttackCooldown += 1;
+    performAttackRound(false);
+  }
 
-    if (basicAttackTimers[unit.id] >= basicRate) {
-      basicAttackTimers[unit.id] = 0;
-      attackWithUnit(unit);
-    }
+  if (skillAttackCooldown <= 0) {
+    skillAttackCooldown += PLAYER_SKILL_RATE;
+    performAttackRound(true);
+    log("팀 스킬 공격!");
+  }
 
-    if (skillAttackTimers[unit.id] >= skillRate) {
-      skillAttackTimers[unit.id] = 0;
-      attackWithUnit(unit, { skill: true });
-      log(`${unit.shortName} 스킬 공격!`);
-    }
+  nextAttackHint = Math.min(basicAttackCooldown, skillAttackCooldown);
+}
 
-    soonest = Math.min(soonest, basicRate - basicAttackTimers[unit.id], skillRate - skillAttackTimers[unit.id]);
+function performAttackRound(skill) {
+  getUnits().forEach((unit, index) => {
+    window.setTimeout(() => attackWithUnit(unit, { skill }), index * 120);
   });
-  nextAttackHint = soonest;
 }
 
 function gameLoop(now) {
@@ -539,7 +525,7 @@ function gameLoop(now) {
   saveCooldown += delta;
 
   moveEnemy(delta);
-  updateAttacks(delta);
+  updateAutoCombat(delta);
 
   if (saveCooldown >= 10) {
     saveCooldown = 0;

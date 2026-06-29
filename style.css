@@ -165,9 +165,14 @@ h1 {
   transform: translateX(-50%) translateY(-8px);
 }
 
+.ally.is-attacking {
+  animation: ally-ranged-attack 0.32s ease-out;
+}
+
 .ally.is-slashing {
   left: var(--slash-x);
   transform: translateX(-50%) scale(1.06);
+  animation: ally-slash-lunge 0.3s ease-out;
 }
 
 .ally-sprite {
@@ -245,6 +250,7 @@ h1 {
   width: 98px;
   height: 98px;
   filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.14));
+  animation: enemy-walk 0.72s ease-in-out infinite;
 }
 
 .hp-bar {
@@ -330,6 +336,40 @@ h1 {
     left: var(--to-x);
     opacity: 0.2;
     transform: translate(-50%, -12px) scale(1.2);
+  }
+}
+
+@keyframes ally-ranged-attack {
+  0% {
+    transform: translateX(-50%) translateX(0) translateY(0) scale(1);
+  }
+  45% {
+    transform: translateX(-50%) translateX(18px) translateY(-5px) scale(1.05);
+  }
+  100% {
+    transform: translateX(-50%) translateX(0) translateY(0) scale(1);
+  }
+}
+
+@keyframes ally-slash-lunge {
+  0% {
+    transform: translateX(-50%) translateX(-12px) scale(0.96);
+  }
+  45% {
+    transform: translateX(-50%) translateX(10px) scale(1.12);
+  }
+  100% {
+    transform: translateX(-50%) translateX(0) scale(1.02);
+  }
+}
+
+@keyframes enemy-walk {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(1deg);
   }
 }
 

@@ -1,5 +1,6 @@
 const STORAGE_KEY = "studioCrewRpgSave";
 const ENEMY_SPAWN_X = 84;
+const ENEMY_DETECTION_X = 76;
 const ENEMY_CONTACT_X = 43;
 
 const recruits = [
@@ -83,6 +84,7 @@ let lastTick = performance.now();
 let isSpawningNext = false;
 let nextAttackHint = 1;
 let lastRosterKey = "";
+let wasEnemyDetected = false;
 const attackTimers = {};
 
 const $ = (selector) => document.querySelector(selector);
@@ -223,14 +225,20 @@ function spawnEnemy() {
   state.enemyHp = hp;
   state.enemyX = ENEMY_SPAWN_X;
   isSpawningNext = false;
+  wasEnemyDetected = false;
+  resetAttackTimers(0);
   enemy.classList.remove("is-defeated");
   log(`${getEnemyName()} 업무가 오른쪽에서 접근합니다.`);
+}
+
+function isEnemyDetected() {
+  return state.enemyX <= ENEMY_DETECTION_X && state.enemyHp > 0 && !isSpawningNext;
 }
 
 function moveEnemy(delta) {
   if (isSpawningNext || state.enemyHp <= 0) return;
 
-  const speed = Math.min(5.8, 2.2 + state.stage * 0.08);
+  const speed = Math.min(8, 4.8 + state.stage * 0.12);
   state.enemyX -= speed * delta;
 
   if (state.enemyX <= ENEMY_CONTACT_X) {
@@ -278,6 +286,8 @@ function completeEnemy(source) {
 }
 
 function attackWithUnit(unit, manual = false) {
+  if (!manual && !isEnemyDetected()) return;
+
   const from = getUnitPosition(unit.id);
   const toX = state.enemyX;
 
@@ -300,7 +310,7 @@ function playProjectile(unit, fromX, fromY, toX) {
   shot.style.setProperty("--shot-color", unit.color);
   effectLayer.appendChild(shot);
   window.setTimeout(() => shot.remove(), 420);
-  pulseUnit(unit.id, "is-casting", 260);
+  pulseUnit(unit.id, "is-attacking", 320);
 }
 
 function playSlash(unit, toX) {
@@ -332,6 +342,12 @@ function pulseUnit(unitId, className, duration) {
   if (!ally) return;
   ally.classList.add(className);
   window.setTimeout(() => ally.classList.remove(className), duration);
+}
+
+function resetAttackTimers(value = 0) {
+  getUnits().forEach((unit) => {
+    attackTimers[unit.id] = value;
+  });
 }
 
 function getUnitPosition(unitId) {
@@ -450,6 +466,7 @@ function renderShop() {
 function render() {
   const hpPercent = Math.max(0, Math.round((state.enemyHp / state.enemyMaxHp) * 100));
   const playerCost = Math.floor(18 * Math.pow(1.4, state.playerLevel - 1));
+  const detected = isEnemyDetected();
 
   goldText.textContent = Math.floor(state.gold);
   ideaText.textContent = Math.floor(state.idea);
@@ -463,7 +480,7 @@ function render() {
   clickPowerText.textContent = state.clickPower;
   clearCountText.textContent = `${state.clearCount}건`;
   playTimeText.textContent = formatTime(state.elapsed);
-  attackTimerText.textContent = `${Math.max(0, nextAttackHint).toFixed(1)}초`;
+  attackTimerText.textContent = detected ? `${Math.max(0, nextAttackHint).toFixed(1)}초` : "탐색중";
   $("#upgradePlayerButton").textContent = `대표 역량 강화 (${playerCost} 자금)`;
   $("#upgradePlayerButton").disabled = state.gold < playerCost;
   renderAllies();
@@ -478,6 +495,20 @@ function formatTime(seconds) {
 
 function updateAttacks(delta) {
   if (isSpawningNext) return;
+
+  if (!isEnemyDetected()) {
+    wasEnemyDetected = false;
+    nextAttackHint = 1;
+    return;
+  }
+
+  if (!wasEnemyDetected) {
+    wasEnemyDetected = true;
+    getUnits().forEach((unit) => {
+      attackTimers[unit.id] = unit.attackRate;
+    });
+    log(`${getEnemyName()} 업무를 인식했습니다. 공격을 시작합니다.`);
+  }
 
   let soonest = 9;
   getUnits().forEach((unit) => {

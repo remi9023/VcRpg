@@ -18,6 +18,7 @@ const recruits = [
     baseCost: 25,
     dps: 1,
     attackType: "plan",
+    skill: { type: "chain", name: "일정 공유", targets: 3, multiplier: 1.2 },
   },
   {
     id: "developer",
@@ -29,6 +30,7 @@ const recruits = [
     baseCost: 55,
     dps: 3,
     attackType: "code",
+    skill: { type: "aoe", name: "빌드 폭발", radius: 14, multiplier: 1.45 },
   },
   {
     id: "artist",
@@ -40,6 +42,7 @@ const recruits = [
     baseCost: 90,
     dps: 5,
     attackType: "slash",
+    skill: { type: "cleave", name: "잉크 소용돌이", targets: 2, multiplier: 1.9 },
   },
   {
     id: "qa",
@@ -51,6 +54,7 @@ const recruits = [
     baseCost: 140,
     dps: 8,
     attackType: "qa",
+    skill: { type: "all", name: "전체 회귀 테스트", multiplier: 0.9 },
   },
 ];
 
@@ -379,7 +383,13 @@ function attackUnit(unit, options = {}) {
   const skill = Boolean(options.skill);
   const manual = Boolean(options.manual);
   const from = getUnitPosition(unit.id);
-  const damage = skill ? Math.ceil(unit.power * 2.8 + state.playerLevel) : unit.power;
+
+  if (skill && unit.skill) {
+    castSkill(unit, from);
+    return;
+  }
+
+  const damage = unit.power;
 
   if (unit.attackType === "slash") {
     playSlash(unit, target, skill);
@@ -388,6 +398,38 @@ function attackUnit(unit, options = {}) {
     playProjectile(unit, from, target, skill);
     window.setTimeout(() => damageEnemy(target.id, damage, manual), 240);
   }
+}
+
+function castSkill(unit, from) {
+  const targets = getSkillTargets(unit.skill);
+  if (!targets.length) return;
+
+  pulseUnit(unit.id, "is-attacking", 420);
+  playSkillEffect(unit, targets);
+
+  targets.forEach((target, index) => {
+    const damage = Math.ceil(unit.power * unit.skill.multiplier + state.playerLevel * 0.6);
+    window.setTimeout(() => damageEnemy(target.id, damage, false), 120 + index * 70);
+  });
+
+  log(`${unit.shortName} 스킬: ${unit.skill.name}`);
+}
+
+function getSkillTargets(skill) {
+  const target = getTargetEnemy();
+  if (!target) return [];
+
+  if (skill.type === "all") return [...state.enemies];
+
+  if (skill.type === "aoe") {
+    return state.enemies.filter((enemy) => Math.abs(enemy.x - target.x) <= skill.radius);
+  }
+
+  if (skill.type === "chain" || skill.type === "cleave") {
+    return [...state.enemies].sort((a, b) => a.x - b.x || a.y - b.y).slice(0, skill.targets);
+  }
+
+  return [target];
 }
 
 function playProjectile(unit, from, target, skill) {
@@ -415,6 +457,29 @@ function playSlash(unit, target, skill) {
   slash.style.setProperty("--hit-x", `${target.x}%`);
   refs.effectLayer.appendChild(slash);
   window.setTimeout(() => slash.remove(), 360);
+}
+
+function playSkillEffect(unit, targets) {
+  const centerX = targets.reduce((sum, target) => sum + target.x, 0) / targets.length;
+  const centerY = targets.reduce((sum, target) => sum + target.y, 0) / targets.length + 64;
+  const effect = document.createElement("span");
+  effect.className = `skill-zone is-${unit.skill.type}`;
+  effect.textContent = unit.skill.type === "all" ? "TEST" : unit.skill.type === "chain" ? "LINK" : "";
+  effect.style.setProperty("--skill-x", `${centerX}%`);
+  effect.style.setProperty("--skill-y", `${centerY}px`);
+  effect.style.setProperty("--skill-color", unit.color);
+  refs.effectLayer.appendChild(effect);
+  window.setTimeout(() => effect.remove(), 620);
+
+  targets.forEach((target) => {
+    const marker = document.createElement("span");
+    marker.className = "skill-hit-marker";
+    marker.style.setProperty("--hit-x", `${target.x}%`);
+    marker.style.setProperty("--hit-y", `${target.y + 82}px`);
+    marker.style.setProperty("--skill-color", unit.color);
+    refs.effectLayer.appendChild(marker);
+    window.setTimeout(() => marker.remove(), 520);
+  });
 }
 
 function damageEnemy(enemyId, amount, manual) {
@@ -538,6 +603,7 @@ function getPlayerUnit(power = state.playerLevel) {
     count: 1,
     power,
     attackType: "code",
+    skill: { type: "aoe", name: "핫픽스 배포", radius: 12, multiplier: 1.35 },
   };
 }
 

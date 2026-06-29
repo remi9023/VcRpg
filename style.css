@@ -248,11 +248,27 @@ h1 {
   transform: translateX(-50%) translateX(48px);
 }
 
+.enemy.is-boss {
+  width: 150px;
+  z-index: 5;
+}
+
 .enemy-sprite {
   width: 66px;
   height: 66px;
   filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.14));
   animation: enemy-walk 0.72s ease-in-out infinite;
+}
+
+.enemy.is-boss .enemy-sprite {
+  width: 104px;
+  height: 104px;
+  filter: drop-shadow(0 9px 0 rgba(0, 0, 0, 0.18));
+}
+
+.enemy.is-boss .enemy-card {
+  border-width: 3px;
+  background: rgba(255, 247, 237, 0.95);
 }
 
 .enemy:nth-child(2n) .enemy-sprite {

@@ -2,6 +2,7 @@ const STORAGE_KEY = "studioCrewRpgSave";
 const ENEMY_SPAWN_X = 86;
 const ENEMY_CONTACT_X = 38;
 const ENEMY_MAX_COUNT = 5;
+const NORMAL_STAGES_PER_CHAPTER = 5;
 const BASIC_ATTACK_RATE = 1;
 const SKILL_ATTACK_RATE = 4;
 const TICK_RATE = 1000 / 30;
@@ -65,6 +66,9 @@ const enemyNames = ["작은 버그", "촉박한 마감", "스코프 증가", "�
 const defaultState = {
   gold: 0,
   idea: 0,
+  chapter: 1,
+  subStage: 1,
+  battleMode: "normal",
   stage: 1,
   enemyHp: 10,
   enemyMaxHp: 10,
@@ -146,7 +150,7 @@ function bindEvents() {
   });
   refs.upgradePlayerButton.addEventListener("click", upgradePlayer);
   refs.nextStageButton.addEventListener("click", () => {
-    state.stage += 1;
+    if (state.battleMode !== "boss") advanceBattleLayer();
     spawnWave();
     renderAll();
   });
@@ -204,7 +208,13 @@ function normalizeState(nextState) {
     ...nextState,
     gold: Number(nextState.gold) || 0,
     idea: Number(nextState.idea) || 0,
-    stage: Math.max(1, Number(nextState.stage) || 1),
+    chapter: Math.max(1, Number(nextState.chapter) || Number(nextState.stage) || 1),
+    subStage: Math.min(
+      NORMAL_STAGES_PER_CHAPTER,
+      Math.max(1, Number(nextState.subStage) || deriveSubStageFromLegacy(nextState.stage))
+    ),
+    battleMode: nextState.battleMode === "boss" ? "boss" : "normal",
+    stage: Math.max(1, Number(nextState.chapter) || Number(nextState.stage) || 1),
     enemyHp: Math.max(0, Number(nextState.enemyHp) || defaultState.enemyHp),
     enemyMaxHp: Math.max(1, Number(nextState.enemyMaxHp) || defaultState.enemyMaxHp),
     enemyX: Number(nextState.enemyX) || ENEMY_SPAWN_X,
@@ -251,14 +261,27 @@ function normalizeEnemies(enemies) {
       x: Number(enemy.x) || ENEMY_SPAWN_X,
       y: Number(enemy.y) || getEnemyLaneY(index),
       lane: Number(enemy.lane) || index,
+      isBoss: Boolean(enemy.isBoss),
     }))
     .filter((enemy) => enemy.hp > 0);
 }
 
 function spawnWave() {
+  state.stage = state.chapter;
+  state.enemies = state.battleMode === "boss" ? createBossWave() : createNormalWave();
+  state.enemyMaxHp = state.enemies.reduce((sum, enemy) => sum + enemy.maxHp, 0);
+  state.enemyHp = state.enemies.reduce((sum, enemy) => sum + enemy.hp, 0);
+  state.enemyX = ENEMY_SPAWN_X;
+  isSpawningNext = false;
+  basicAttackCooldown = 0.35;
+  skillAttackCooldown = SKILL_ATTACK_RATE;
+  log(`${getProgressLabel()} ${state.battleMode === "boss" ? "보스" : "업무"}가 오른쪽에서 접근합니다.`);
+}
+
+function createNormalWave() {
   const count = getWaveEnemyCount();
   const hp = getEnemyHp();
-  state.enemies = Array.from({ length: count }, (_, index) => ({
+  return Array.from({ length: count }, (_, index) => ({
     id: `enemy-${Date.now()}-${enemySeq++}`,
     name: getEnemyName(),
     hp,
@@ -266,22 +289,36 @@ function spawnWave() {
     x: ENEMY_SPAWN_X + index * 4,
     y: getEnemyLaneY(index),
     lane: index,
+    isBoss: false,
   }));
-  state.enemyMaxHp = hp * count;
-  state.enemyHp = state.enemies.reduce((sum, enemy) => sum + enemy.hp, 0);
-  state.enemyX = ENEMY_SPAWN_X;
-  isSpawningNext = false;
-  basicAttackCooldown = 0.35;
-  skillAttackCooldown = SKILL_ATTACK_RATE;
-  log(`${getEnemyName()} ${count}건이 오른쪽에서 접근합니다.`);
+}
+
+function createBossWave() {
+  const hp = getBossHp();
+  return [
+    {
+      id: `boss-${Date.now()}-${enemySeq++}`,
+      name: `${state.chapter}스테이지 보스`,
+      hp,
+      maxHp: hp,
+      x: ENEMY_SPAWN_X,
+      y: 72,
+      lane: 0,
+      isBoss: true,
+    },
+  ];
 }
 
 function getWaveEnemyCount() {
-  return Math.min(ENEMY_MAX_COUNT, 2 + Math.floor((state.stage - 1) / 2));
+  return Math.min(ENEMY_MAX_COUNT, 2 + Math.floor((state.subStage - 1) / 2) + Math.floor((state.chapter - 1) / 3));
 }
 
 function getEnemyHp() {
-  return Math.floor(7 + state.stage * 2.4);
+  return Math.floor(6 + state.chapter * 2.2 + state.subStage * 1.4);
+}
+
+function getBossHp() {
+  return Math.floor(getEnemyHp() * (5.5 + state.chapter * 0.4));
 }
 
 function getEnemyLaneY(index) {
@@ -297,6 +334,11 @@ function moveEnemies(delta) {
     enemy.x = Math.max(ENEMY_CONTACT_X, enemy.x - speed * delta);
 
     if (enemy.x <= ENEMY_CONTACT_X) {
+      if (enemy.isBoss) {
+        failBossBattle();
+        return;
+      }
+
       enemy.x = ENEMY_SPAWN_X + enemy.lane * 3;
       enemy.hp = Math.min(enemy.maxHp, enemy.hp + Math.ceil(enemy.maxHp * 0.1));
       log("업무가 팀 앞까지 밀려와 일정 압박이 커졌습니다.");
@@ -396,7 +438,7 @@ function damageEnemy(enemyId, amount, manual) {
 
 function defeatEnemy(enemyId, manual) {
   state.enemies = state.enemies.filter((enemy) => enemy.id !== enemyId);
-  const goldGain = Math.floor(3 + state.stage * 1.2);
+  const goldGain = Math.floor(3 + state.chapter * 1.4 + state.subStage * 0.6);
   const ideaGain = manual ? 1 : 0;
   state.gold += goldGain;
   state.idea += ideaGain;
@@ -409,15 +451,45 @@ function completeWave(manual) {
   if (isSpawningNext) return;
 
   isSpawningNext = true;
-  const bonusIdea = manual ? 1 : 2;
+  const clearedBoss = state.battleMode === "boss";
+  const bonusIdea = clearedBoss ? 8 + state.chapter * 2 : manual ? 1 : 2;
   state.idea += bonusIdea;
-  log(`웨이브 완료! 아이디어 +${bonusIdea}`);
+  log(clearedBoss ? `${state.chapter}스테이지 보스 클리어! 아이디어 +${bonusIdea}` : `${getProgressLabel()} 클리어!`);
 
   window.setTimeout(() => {
-    state.stage += 1;
+    advanceBattleLayer();
     spawnWave();
     renderAll();
   }, 520);
+}
+
+function failBossBattle() {
+  if (isSpawningNext) return;
+
+  isSpawningNext = true;
+  state.battleMode = "normal";
+  state.subStage = NORMAL_STAGES_PER_CHAPTER;
+  state.enemies = [];
+  syncEnemySummary();
+  log(`${state.chapter}스테이지 보스 퇴치 실패. ${state.chapter}-${state.subStage}로 복귀합니다.`);
+
+  window.setTimeout(() => {
+    spawnWave();
+    renderAll();
+  }, 700);
+}
+
+function advanceBattleLayer() {
+  if (state.battleMode === "boss") {
+    state.chapter += 1;
+    state.subStage = 1;
+    state.battleMode = "normal";
+  } else if (state.subStage >= NORMAL_STAGES_PER_CHAPTER) {
+    state.battleMode = "boss";
+  } else {
+    state.subStage += 1;
+  }
+  state.stage = state.chapter;
 }
 
 function getTargetEnemy() {
@@ -434,7 +506,8 @@ function pulseEnemy(enemyId) {
 function syncEnemySummary() {
   state.enemyHp = state.enemies.reduce((sum, enemy) => sum + enemy.hp, 0);
   state.enemyMaxHp = state.enemies.reduce((sum, enemy) => sum + enemy.maxHp, 0) || 1;
-  state.enemyX = getTargetEnemy()?.x || ENEMY_SPAWN_X;
+  const target = getTargetEnemy();
+  state.enemyX = target ? target.x : ENEMY_SPAWN_X;
 }
 
 function showDamage(amount, target) {
@@ -517,7 +590,16 @@ function getTeamCount() {
 }
 
 function getEnemyName() {
-  return enemyNames[Math.min(enemyNames.length - 1, Math.floor((state.stage - 1) / 4))];
+  return enemyNames[Math.min(enemyNames.length - 1, state.chapter - 1)];
+}
+
+function getProgressLabel() {
+  return state.battleMode === "boss" ? `${state.chapter}-BOSS` : `${state.chapter}-${state.subStage}`;
+}
+
+function deriveSubStageFromLegacy(stage) {
+  const legacyStage = Math.max(1, Number(stage) || 1);
+  return ((legacyStage - 1) % NORMAL_STAGES_PER_CHAPTER) + 1;
 }
 
 function costFor(baseCost, count) {
@@ -581,7 +663,7 @@ function renderBattle() {
 
   refs.goldText.textContent = Math.floor(state.gold);
   refs.ideaText.textContent = Math.floor(state.idea);
-  refs.stageText.textContent = state.stage;
+  refs.stageText.textContent = getProgressLabel();
   setText(refs.dpsText, `초당 기여도 ${getTotalDps()}`);
   renderEnemies();
   setText(refs.teamCountText, `${getTeamCount()}명`);
@@ -591,6 +673,7 @@ function renderBattle() {
   setText(refs.attackTimerText, `${Math.max(0, Math.min(basicAttackCooldown, skillAttackCooldown)).toFixed(1)}초`);
   refs.upgradePlayerButton.textContent = `대표 역량 강화 (${playerCost} 자금)`;
   refs.upgradePlayerButton.disabled = state.gold < playerCost;
+  refs.nextStageButton.textContent = state.battleMode === "boss" ? "보스 재도전" : "다음 단계";
 }
 
 function renderEnemies() {
@@ -598,7 +681,7 @@ function renderEnemies() {
     .map((enemy) => {
       const hpPercent = Math.max(0, Math.round((enemy.hp / enemy.maxHp) * 100));
       return `
-        <div class="enemy" data-enemy-id="${enemy.id}" style="--enemy-x: ${enemy.x}%; --enemy-y: ${enemy.y}px;">
+        <div class="enemy${enemy.isBoss ? " is-boss" : ""}" data-enemy-id="${enemy.id}" style="--enemy-x: ${enemy.x}%; --enemy-y: ${enemy.y}px;">
           <img src="assets/enemy.svg" alt="버그 몬스터" class="enemy-sprite" />
           <div class="enemy-card">
             <strong>${enemy.name}</strong>

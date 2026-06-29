@@ -300,6 +300,14 @@ h1 {
   background: #8b5cf6;
 }
 
+.projectile.is-skill {
+  width: 26px;
+  height: 26px;
+  border-width: 3px;
+  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.55), 0 0 18px rgba(37, 99, 235, 0.55);
+  animation-duration: 0.46s;
+}
+
 .slash-effect {
   position: absolute;
   left: var(--hit-x);
@@ -312,6 +320,15 @@ h1 {
   transform: rotate(-36deg);
   animation: slash-pop 0.3s ease-out forwards;
   z-index: 7;
+}
+
+.slash-effect.is-skill {
+  width: 86px;
+  height: 86px;
+  border-right-width: 10px;
+  border-bottom-width: 10px;
+  border-color: #ec4899;
+  box-shadow: 10px 10px 0 rgba(249, 115, 22, 0.28);
 }
 
 .damage-number {

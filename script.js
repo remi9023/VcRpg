@@ -1,7 +1,7 @@
 const STORAGE_KEY = "studioCrewRpgSave";
 const ENEMY_SPAWN_X = 84;
-const ENEMY_DETECTION_X = 76;
 const ENEMY_CONTACT_X = 43;
+const PLAYER_SKILL_RATE = 4;
 
 const recruits = [
   {
@@ -84,8 +84,8 @@ let lastTick = performance.now();
 let isSpawningNext = false;
 let nextAttackHint = 1;
 let lastRosterKey = "";
-let wasEnemyDetected = false;
-const attackTimers = {};
+const basicAttackTimers = {};
+const skillAttackTimers = {};
 
 const $ = (selector) => document.querySelector(selector);
 const battlefield = $("#battlefield");
@@ -225,20 +225,19 @@ function spawnEnemy() {
   state.enemyHp = hp;
   state.enemyX = ENEMY_SPAWN_X;
   isSpawningNext = false;
-  wasEnemyDetected = false;
-  resetAttackTimers(0);
+  resetAttackTimers(true);
   enemy.classList.remove("is-defeated");
   log(`${getEnemyName()} 업무가 오른쪽에서 접근합니다.`);
 }
 
-function isEnemyDetected() {
-  return state.enemyX <= ENEMY_DETECTION_X && state.enemyHp > 0 && !isSpawningNext;
+function canAttackEnemy() {
+  return state.enemyHp > 0 && !isSpawningNext;
 }
 
 function moveEnemy(delta) {
   if (isSpawningNext || state.enemyHp <= 0) return;
 
-  const speed = Math.min(8, 4.8 + state.stage * 0.12);
+  const speed = Math.min(5.2, 2.6 + state.stage * 0.08);
   state.enemyX -= speed * delta;
 
   if (state.enemyX <= ENEMY_CONTACT_X) {
@@ -285,25 +284,28 @@ function completeEnemy(source) {
   }, 520);
 }
 
-function attackWithUnit(unit, manual = false) {
-  if (!manual && !isEnemyDetected()) return;
+function attackWithUnit(unit, options = {}) {
+  const manual = Boolean(options.manual);
+  const skill = Boolean(options.skill);
+  if (!canAttackEnemy()) return;
 
   const from = getUnitPosition(unit.id);
   const toX = state.enemyX;
+  const damage = skill ? Math.ceil(unit.power * 2.8 + state.playerLevel) : unit.power;
 
   if (unit.attackType === "slash") {
-    playSlash(unit, toX);
-    window.setTimeout(() => damageEnemy(unit.power, "auto", unit.id), 160);
+    playSlash(unit, toX, skill);
+    window.setTimeout(() => damageEnemy(damage, manual ? "manual" : "auto", unit.id), 160);
     return;
   }
 
-  playProjectile(unit, from.x, from.y, toX);
-  window.setTimeout(() => damageEnemy(unit.power, manual ? "manual" : "auto", unit.id), 300);
+  playProjectile(unit, from.x, from.y, toX, skill);
+  window.setTimeout(() => damageEnemy(damage, manual ? "manual" : "auto", unit.id), 300);
 }
 
-function playProjectile(unit, fromX, fromY, toX) {
+function playProjectile(unit, fromX, fromY, toX, skill = false) {
   const shot = document.createElement("span");
-  shot.className = `projectile is-${unit.attackType}`;
+  shot.className = `projectile is-${unit.attackType}${skill ? " is-skill" : ""}`;
   shot.style.setProperty("--from-x", `${fromX}%`);
   shot.style.setProperty("--from-y", `${fromY}px`);
   shot.style.setProperty("--to-x", `${toX}%`);
@@ -313,7 +315,7 @@ function playProjectile(unit, fromX, fromY, toX) {
   pulseUnit(unit.id, "is-attacking", 320);
 }
 
-function playSlash(unit, toX) {
+function playSlash(unit, toX, skill = false) {
   const ally = allyLayer.querySelector(`[data-unit-id="${unit.id}"]`);
   if (ally) {
     ally.style.setProperty("--slash-x", `${Math.max(36, toX - 9)}%`);
@@ -322,7 +324,7 @@ function playSlash(unit, toX) {
   }
 
   const slash = document.createElement("span");
-  slash.className = "slash-effect";
+  slash.className = `slash-effect${skill ? " is-skill" : ""}`;
   slash.style.setProperty("--hit-x", `${toX}%`);
   effectLayer.appendChild(slash);
   window.setTimeout(() => slash.remove(), 320);
@@ -344,10 +346,15 @@ function pulseUnit(unitId, className, duration) {
   window.setTimeout(() => ally.classList.remove(className), duration);
 }
 
-function resetAttackTimers(value = 0) {
+function resetAttackTimers(ready = false) {
   getUnits().forEach((unit) => {
-    attackTimers[unit.id] = value;
+    basicAttackTimers[unit.id] = ready ? unit.attackRate : 0;
+    skillAttackTimers[unit.id] = ready ? getSkillRate(unit) : 0;
   });
+}
+
+function getSkillRate(unit) {
+  return unit.id === "player" ? PLAYER_SKILL_RATE : Math.max(3.2, unit.attackRate * 3);
 }
 
 function getUnitPosition(unitId) {
@@ -366,7 +373,8 @@ function buyRecruit(id) {
 
   state.gold -= cost;
   state.recruits[id] = count + 1;
-  attackTimers[id] = 0;
+  basicAttackTimers[id] = recruit.attackRate;
+  skillAttackTimers[id] = getSkillRate(recruit);
   log(`${recruit.name} 영입 완료. 전투 화면에 배치되었습니다.`);
   render();
 }
@@ -466,7 +474,6 @@ function renderShop() {
 function render() {
   const hpPercent = Math.max(0, Math.round((state.enemyHp / state.enemyMaxHp) * 100));
   const playerCost = Math.floor(18 * Math.pow(1.4, state.playerLevel - 1));
-  const detected = isEnemyDetected();
 
   goldText.textContent = Math.floor(state.gold);
   ideaText.textContent = Math.floor(state.idea);
@@ -480,7 +487,7 @@ function render() {
   clickPowerText.textContent = state.clickPower;
   clearCountText.textContent = `${state.clearCount}건`;
   playTimeText.textContent = formatTime(state.elapsed);
-  attackTimerText.textContent = detected ? `${Math.max(0, nextAttackHint).toFixed(1)}초` : "탐색중";
+  attackTimerText.textContent = `${Math.max(0, nextAttackHint).toFixed(1)}초`;
   $("#upgradePlayerButton").textContent = `대표 역량 강화 (${playerCost} 자금)`;
   $("#upgradePlayerButton").disabled = state.gold < playerCost;
   renderAllies();
@@ -496,29 +503,31 @@ function formatTime(seconds) {
 function updateAttacks(delta) {
   if (isSpawningNext) return;
 
-  if (!isEnemyDetected()) {
-    wasEnemyDetected = false;
+  if (!canAttackEnemy()) {
     nextAttackHint = 1;
     return;
   }
 
-  if (!wasEnemyDetected) {
-    wasEnemyDetected = true;
-    getUnits().forEach((unit) => {
-      attackTimers[unit.id] = unit.attackRate;
-    });
-    log(`${getEnemyName()} 업무를 인식했습니다. 공격을 시작합니다.`);
-  }
-
   let soonest = 9;
   getUnits().forEach((unit) => {
-    attackTimers[unit.id] = (attackTimers[unit.id] || 0) + delta;
-    const rate = unit.attackRate;
-    if (attackTimers[unit.id] >= rate) {
-      attackTimers[unit.id] = 0;
+    const basicRate = unit.attackRate;
+    const skillRate = getSkillRate(unit);
+
+    basicAttackTimers[unit.id] = (basicAttackTimers[unit.id] || 0) + delta;
+    skillAttackTimers[unit.id] = (skillAttackTimers[unit.id] || 0) + delta;
+
+    if (basicAttackTimers[unit.id] >= basicRate) {
+      basicAttackTimers[unit.id] = 0;
       attackWithUnit(unit);
     }
-    soonest = Math.min(soonest, rate - attackTimers[unit.id]);
+
+    if (skillAttackTimers[unit.id] >= skillRate) {
+      skillAttackTimers[unit.id] = 0;
+      attackWithUnit(unit, { skill: true });
+      log(`${unit.shortName} 스킬 공격!`);
+    }
+
+    soonest = Math.min(soonest, basicRate - basicAttackTimers[unit.id], skillRate - skillAttackTimers[unit.id]);
   });
   nextAttackHint = soonest;
 }
@@ -560,10 +569,11 @@ document.addEventListener("click", (event) => {
 $("#manualWorkButton").addEventListener("click", () => {
   attackWithUnit({
     id: "player",
+    shortName: "대표",
     color: "#059669",
     attackType: "code",
     power: state.clickPower,
-  }, true);
+  }, { manual: true });
 });
 $("#upgradePlayerButton").addEventListener("click", upgradePlayer);
 $("#nextStageButton").addEventListener("click", nextStage);

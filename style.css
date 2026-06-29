@@ -431,6 +431,17 @@ h1 {
   font-size: 14px;
 }
 
+.combat-power {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f8fbff;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 #manualWorkButton,
 .action-row button,
 .settings-row button {
@@ -604,6 +615,14 @@ h1 {
   .stat-grid,
   .timer-board {
     grid-template-columns: 1fr;
+  }
+
+  .message-line {
+    flex-wrap: wrap;
+  }
+
+  #battleLog {
+    flex: 1 1 100%;
   }
 
   .shop-item {

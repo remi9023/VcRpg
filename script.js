@@ -1,7 +1,9 @@
 const STORAGE_KEY = "studioCrewRpgSave";
-const ENEMY_SPAWN_X = 84;
-const ENEMY_CONTACT_X = 43;
-const PLAYER_SKILL_RATE = 4;
+const ENEMY_SPAWN_X = 86;
+const ENEMY_CONTACT_X = 38;
+const BASIC_ATTACK_RATE = 1;
+const SKILL_ATTACK_RATE = 4;
+const TICK_RATE = 1000 / 30;
 
 const recruits = [
   {
@@ -14,7 +16,6 @@ const recruits = [
     baseCost: 25,
     dps: 1,
     attackType: "plan",
-    attackRate: 1.35,
   },
   {
     id: "developer",
@@ -26,7 +27,6 @@ const recruits = [
     baseCost: 55,
     dps: 3,
     attackType: "code",
-    attackRate: 1.05,
   },
   {
     id: "artist",
@@ -38,7 +38,6 @@ const recruits = [
     baseCost: 90,
     dps: 5,
     attackType: "slash",
-    attackRate: 1.45,
   },
   {
     id: "qa",
@@ -50,7 +49,6 @@ const recruits = [
     baseCost: 140,
     dps: 8,
     attackType: "qa",
-    attackRate: 1.8,
   },
 ];
 
@@ -78,36 +76,113 @@ const defaultState = {
   tools: {},
 };
 
-let state = loadState();
-let saveCooldown = 0;
-let lastTick = performance.now();
+let state;
+let refs;
 let isSpawningNext = false;
-let nextAttackHint = 0.6;
 let lastRosterKey = "";
-let basicAttackCooldown = 0.6;
-let skillAttackCooldown = PLAYER_SKILL_RATE;
+let basicAttackCooldown = 0.35;
+let skillAttackCooldown = SKILL_ATTACK_RATE;
+let saveCooldown = 0;
+let lastTick = Date.now();
+let gameTimer = null;
 
-const $ = (selector) => document.querySelector(selector);
-const battlefield = $("#battlefield");
-const allyLayer = $("#allyLayer");
-const effectLayer = $("#effectLayer");
-const goldText = $("#goldText");
-const ideaText = $("#ideaText");
-const stageText = $("#stageText");
-const dpsText = $("#dpsText");
-const enemy = $("#enemy");
-const enemyName = $("#enemyName");
-const enemyHpBar = $("#enemyHpBar");
-const enemyHpText = $("#enemyHpText");
-const battleLog = $("#battleLog");
-const teamCountText = $("#teamCountText");
-const clickPowerText = $("#clickPowerText");
-const clearCountText = $("#clearCountText");
-const playTimeText = $("#playTimeText");
-const attackTimerText = $("#attackTimerText");
-const saveStateText = $("#saveStateText");
-const recruitList = $("#recruitList");
-const toolList = $("#toolList");
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initGame);
+} else {
+  initGame();
+}
+
+function initGame() {
+  refs = {
+    allyLayer: document.querySelector("#allyLayer"),
+    effectLayer: document.querySelector("#effectLayer"),
+    goldText: document.querySelector("#goldText"),
+    ideaText: document.querySelector("#ideaText"),
+    stageText: document.querySelector("#stageText"),
+    dpsText: document.querySelector("#dpsText"),
+    enemy: document.querySelector("#enemy"),
+    enemyName: document.querySelector("#enemyName"),
+    enemyHpBar: document.querySelector("#enemyHpBar"),
+    enemyHpText: document.querySelector("#enemyHpText"),
+    battleLog: document.querySelector("#battleLog"),
+    teamCountText: document.querySelector("#teamCountText"),
+    clickPowerText: document.querySelector("#clickPowerText"),
+    clearCountText: document.querySelector("#clearCountText"),
+    playTimeText: document.querySelector("#playTimeText"),
+    attackTimerText: document.querySelector("#attackTimerText"),
+    saveStateText: document.querySelector("#saveStateText"),
+    recruitList: document.querySelector("#recruitList"),
+    toolList: document.querySelector("#toolList"),
+    manualWorkButton: document.querySelector("#manualWorkButton"),
+    upgradePlayerButton: document.querySelector("#upgradePlayerButton"),
+    nextStageButton: document.querySelector("#nextStageButton"),
+    saveButton: document.querySelector("#saveButton"),
+    resetButton: document.querySelector("#resetButton"),
+  };
+
+  state = loadState();
+  if (state.enemyHp <= 0 || state.enemyX <= ENEMY_CONTACT_X || !state.enemyMaxHp) {
+    spawnEnemy();
+  }
+
+  bindEvents();
+  renderAll();
+  startLoop();
+}
+
+function bindEvents() {
+  document.addEventListener("click", (event) => {
+    const tab = event.target.closest("[data-tab]");
+    const recruitButton = event.target.closest("[data-buy-recruit]");
+    const toolButton = event.target.closest("[data-buy-tool]");
+
+    if (tab) switchTab(tab);
+    if (recruitButton) buyRecruit(recruitButton.dataset.buyRecruit);
+    if (toolButton) buyTool(toolButton.dataset.buyTool);
+  });
+
+  refs.manualWorkButton.addEventListener("click", () => {
+    attackUnit(getPlayerUnit(state.clickPower), { manual: true });
+  });
+  refs.upgradePlayerButton.addEventListener("click", upgradePlayer);
+  refs.nextStageButton.addEventListener("click", () => {
+    state.stage += 1;
+    spawnEnemy();
+    renderAll();
+  });
+  refs.saveButton.addEventListener("click", () => saveState("수동 저장 완료"));
+  refs.resetButton.addEventListener("click", resetGame);
+}
+
+function startLoop() {
+  if (gameTimer) window.clearInterval(gameTimer);
+  lastTick = Date.now();
+  gameTimer = window.setInterval(() => {
+    const now = Date.now();
+    const delta = Math.min(0.2, (now - lastTick) / 1000);
+    lastTick = now;
+    tick(delta);
+  }, TICK_RATE);
+}
+
+function tick(delta) {
+  try {
+    state.elapsed += delta;
+    saveCooldown += delta;
+
+    moveEnemy(delta);
+    updateAutoCombat(delta);
+
+    if (saveCooldown >= 10) {
+      saveCooldown = 0;
+      saveState("자동 저장 완료");
+    }
+
+    renderBattle();
+  } catch (error) {
+    log(`전투 루프 오류: ${error.message}`);
+  }
+}
 
 function cloneDefaultState() {
   return JSON.parse(JSON.stringify(defaultState));
@@ -121,15 +196,6 @@ function loadState() {
   } catch {
     return cloneDefaultState();
   }
-}
-
-function saveState(message = "저장 완료") {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    message = "저장소 접근 불가";
-  }
-  saveStateText.textContent = message;
 }
 
 function normalizeState(nextState) {
@@ -151,16 +217,215 @@ function normalizeState(nextState) {
   };
 }
 
+function saveState(message) {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    message = "저장소 접근 불가";
+  }
+  refs.saveStateText.textContent = message;
+}
+
+function resetGame() {
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    refs.saveStateText.textContent = "저장소 접근 불가";
+  }
+  state = cloneDefaultState();
+  lastRosterKey = "";
+  spawnEnemy();
+  renderAll();
+  saveState("초기화 완료");
+}
+
+function spawnEnemy() {
+  const hp = Math.floor(8 + state.stage * 8 + Math.pow(state.stage, 1.45) * 5);
+  state.enemyMaxHp = hp;
+  state.enemyHp = hp;
+  state.enemyX = ENEMY_SPAWN_X;
+  isSpawningNext = false;
+  basicAttackCooldown = 0.35;
+  skillAttackCooldown = SKILL_ATTACK_RATE;
+  if (refs && refs.enemy) refs.enemy.classList.remove("is-defeated");
+  log(`${getEnemyName()} 업무가 오른쪽에서 접근합니다.`);
+}
+
+function moveEnemy(delta) {
+  if (isSpawningNext || state.enemyHp <= 0) return;
+
+  const speed = Math.min(5.4, 2.5 + state.stage * 0.08);
+  state.enemyX = Math.max(ENEMY_CONTACT_X, state.enemyX - speed * delta);
+
+  if (state.enemyX <= ENEMY_CONTACT_X) {
+    state.enemyX = ENEMY_SPAWN_X;
+    state.enemyHp = Math.min(state.enemyMaxHp, state.enemyHp + Math.ceil(state.enemyMaxHp * 0.12));
+    log("업무가 팀 앞까지 밀려와 일정 압박이 커졌습니다.");
+  }
+}
+
+function updateAutoCombat(delta) {
+  if (isSpawningNext || state.enemyHp <= 0) return;
+
+  basicAttackCooldown -= delta;
+  skillAttackCooldown -= delta;
+
+  if (basicAttackCooldown <= 0) {
+    basicAttackCooldown += BASIC_ATTACK_RATE;
+    performAttackRound(false);
+  }
+
+  if (skillAttackCooldown <= 0) {
+    skillAttackCooldown += SKILL_ATTACK_RATE;
+    performAttackRound(true);
+    log("팀 스킬 공격!");
+  }
+}
+
+function performAttackRound(skill) {
+  getUnits().forEach((unit, index) => {
+    window.setTimeout(() => attackUnit(unit, { skill }), index * 120);
+  });
+}
+
+function attackUnit(unit, options = {}) {
+  if (isSpawningNext || state.enemyHp <= 0) return;
+
+  const skill = Boolean(options.skill);
+  const manual = Boolean(options.manual);
+  const from = getUnitPosition(unit.id);
+  const damage = skill ? Math.ceil(unit.power * 2.8 + state.playerLevel) : unit.power;
+
+  if (unit.attackType === "slash") {
+    playSlash(unit, skill);
+    window.setTimeout(() => damageEnemy(damage, manual), 140);
+  } else {
+    playProjectile(unit, from, skill);
+    window.setTimeout(() => damageEnemy(damage, manual), 240);
+  }
+}
+
+function playProjectile(unit, from, skill) {
+  const shot = document.createElement("span");
+  shot.className = `projectile is-${unit.attackType}${skill ? " is-skill" : ""}`;
+  shot.style.setProperty("--from-x", `${from.x}%`);
+  shot.style.setProperty("--from-y", `${from.y}px`);
+  shot.style.setProperty("--to-x", `${state.enemyX}%`);
+  shot.style.setProperty("--shot-color", unit.color);
+  refs.effectLayer.appendChild(shot);
+  pulseUnit(unit.id, "is-attacking", 320);
+  window.setTimeout(() => shot.remove(), 480);
+}
+
+function playSlash(unit, skill) {
+  const ally = refs.allyLayer.querySelector(`[data-unit-id="${unit.id}"]`);
+  if (ally) {
+    ally.style.setProperty("--slash-x", `${Math.max(36, state.enemyX - 9)}%`);
+    ally.classList.add("is-slashing");
+    window.setTimeout(() => ally.classList.remove("is-slashing"), 300);
+  }
+
+  const slash = document.createElement("span");
+  slash.className = `slash-effect${skill ? " is-skill" : ""}`;
+  slash.style.setProperty("--hit-x", `${state.enemyX}%`);
+  refs.effectLayer.appendChild(slash);
+  window.setTimeout(() => slash.remove(), 360);
+}
+
+function damageEnemy(amount, manual) {
+  if (isSpawningNext || state.enemyHp <= 0) return;
+
+  const finalAmount = Math.max(1, Math.round(amount * getGlobalMultiplier()));
+  state.enemyHp = Math.max(0, state.enemyHp - finalAmount);
+  showDamage(finalAmount);
+  refs.enemy.classList.add("is-hit");
+  window.setTimeout(() => refs.enemy.classList.remove("is-hit"), 120);
+
+  if (state.enemyHp <= 0) {
+    completeEnemy(manual);
+  } else if (manual) {
+    log(`직접 처리로 ${finalAmount} 기여도를 넣었습니다.`);
+  }
+}
+
+function completeEnemy(manual) {
+  if (isSpawningNext) return;
+
+  isSpawningNext = true;
+  const goldGain = Math.floor(6 + state.stage * 4);
+  const ideaGain = manual ? 2 : 1;
+  state.gold += goldGain;
+  state.idea += ideaGain;
+  state.clearCount += 1;
+  refs.enemy.classList.add("is-defeated");
+  log(`업무 완료! 자금 +${goldGain}, 아이디어 +${ideaGain}`);
+
+  window.setTimeout(() => {
+    state.stage += 1;
+    spawnEnemy();
+    renderAll();
+  }, 520);
+}
+
+function showDamage(amount) {
+  const damage = document.createElement("span");
+  damage.className = "damage-number";
+  damage.textContent = `-${amount}`;
+  damage.style.setProperty("--hit-x", `${state.enemyX}%`);
+  refs.effectLayer.appendChild(damage);
+  window.setTimeout(() => damage.remove(), 760);
+}
+
+function pulseUnit(unitId, className, duration) {
+  const ally = refs.allyLayer.querySelector(`[data-unit-id="${unitId}"]`);
+  if (!ally) return;
+  ally.classList.add(className);
+  window.setTimeout(() => ally.classList.remove(className), duration);
+}
+
+function getPlayerUnit(power = state.playerLevel) {
+  return {
+    id: "player",
+    name: "대표",
+    shortName: "대표",
+    mark: "C",
+    color: "#059669",
+    sprite: "assets/player.svg",
+    count: 1,
+    power,
+    attackType: "code",
+  };
+}
+
+function getUnits() {
+  const units = [getPlayerUnit()];
+  recruits.forEach((recruit) => {
+    const count = getRecruitCount(recruit.id);
+    if (count > 0) {
+      units.push({
+        ...recruit,
+        count,
+        power: getRecruitPower(recruit) * count,
+      });
+    }
+  });
+  return units;
+}
+
+function getUnitPosition(unitId) {
+  const index = Math.max(0, getUnits().findIndex((unit) => unit.id === unitId));
+  return {
+    x: 14 + index * 7,
+    y: 42 + (index % 2) * 66,
+  };
+}
+
 function getRecruitCount(id) {
   return state.recruits[id] || 0;
 }
 
 function getToolLevel(id) {
   return state.tools[id] || 0;
-}
-
-function costFor(baseCost, count) {
-  return Math.floor(baseCost * Math.pow(1.32, count));
 }
 
 function getRecruitPower(recruit) {
@@ -175,9 +440,7 @@ function getGlobalMultiplier() {
 }
 
 function getTotalDps() {
-  const recruitDps = recruits.reduce((sum, recruit) => {
-    return sum + getRecruitCount(recruit.id) * getRecruitPower(recruit);
-  }, 0);
+  const recruitDps = recruits.reduce((sum, recruit) => sum + getRecruitCount(recruit.id) * getRecruitPower(recruit), 0);
   return Math.max(1, Math.round((state.playerLevel + recruitDps) * getGlobalMultiplier()));
 }
 
@@ -189,170 +452,8 @@ function getEnemyName() {
   return enemyNames[Math.min(enemyNames.length - 1, Math.floor((state.stage - 1) / 4))];
 }
 
-function getUnits() {
-  const units = [
-    {
-      id: "player",
-      name: "대표",
-      shortName: "대표",
-      mark: "C",
-      color: "#059669",
-      sprite: "assets/player.svg",
-      count: 1,
-      power: state.playerLevel,
-      attackType: "code",
-      attackRate: 1,
-    },
-  ];
-
-  recruits.forEach((recruit) => {
-    const count = getRecruitCount(recruit.id);
-    if (count > 0) {
-      units.push({
-        ...recruit,
-        count,
-        power: getRecruitPower(recruit) * count,
-      });
-    }
-  });
-
-  return units;
-}
-
-function spawnEnemy() {
-  const hp = Math.floor(8 + state.stage * 8 + Math.pow(state.stage, 1.45) * 5);
-  state.enemyMaxHp = hp;
-  state.enemyHp = hp;
-  state.enemyX = ENEMY_SPAWN_X;
-  isSpawningNext = false;
-  basicAttackCooldown = 0.4;
-  skillAttackCooldown = PLAYER_SKILL_RATE;
-  enemy.classList.remove("is-defeated");
-  log(`${getEnemyName()} 업무가 오른쪽에서 접근합니다.`);
-}
-
-function canAttackEnemy() {
-  return state.enemyHp > 0 && !isSpawningNext;
-}
-
-function moveEnemy(delta) {
-  if (isSpawningNext || state.enemyHp <= 0) return;
-
-  const speed = Math.min(5.2, 2.6 + state.stage * 0.08);
-  state.enemyX -= speed * delta;
-
-  if (state.enemyX <= ENEMY_CONTACT_X) {
-    state.enemyX = ENEMY_SPAWN_X;
-    state.enemyHp = Math.min(state.enemyMaxHp, state.enemyHp + Math.ceil(state.enemyMaxHp * 0.15));
-    log("업무가 팀 앞까지 밀려와 일정 압박이 커졌습니다.");
-  }
-}
-
-function damageEnemy(amount, source, unitId = "player") {
-  if (isSpawningNext || state.enemyHp <= 0) return;
-
-  const finalAmount = Math.max(1, Math.round(amount * getGlobalMultiplier()));
-  state.enemyHp = Math.max(0, state.enemyHp - finalAmount);
-  showDamage(finalAmount);
-  enemy.classList.add("is-hit");
-  window.setTimeout(() => enemy.classList.remove("is-hit"), 120);
-
-  if (state.enemyHp <= 0) {
-    completeEnemy(source);
-  } else if (source === "manual") {
-    log(`직접 처리로 ${finalAmount} 기여도를 넣었습니다.`);
-  } else if (unitId === "artist") {
-    log("일러스트레이터가 펜으로 빠르게 베었습니다.");
-  }
-}
-
-function completeEnemy(source) {
-  if (isSpawningNext) return;
-
-  isSpawningNext = true;
-  const goldGain = Math.floor(6 + state.stage * 4);
-  const ideaGain = source === "manual" ? 2 : 1;
-  state.gold += goldGain;
-  state.idea += ideaGain;
-  state.clearCount += 1;
-  enemy.classList.add("is-defeated");
-  log(`업무 완료! 자금 +${goldGain}, 아이디어 +${ideaGain}`);
-
-  window.setTimeout(() => {
-    state.stage += 1;
-    spawnEnemy();
-    render();
-  }, 520);
-}
-
-function attackWithUnit(unit, options = {}) {
-  const manual = Boolean(options.manual);
-  const skill = Boolean(options.skill);
-  if (!canAttackEnemy()) return;
-
-  const from = getUnitPosition(unit.id);
-  const toX = state.enemyX;
-  const damage = skill ? Math.ceil(unit.power * 2.8 + state.playerLevel) : unit.power;
-
-  if (unit.attackType === "slash") {
-    playSlash(unit, toX, skill);
-    window.setTimeout(() => damageEnemy(damage, manual ? "manual" : "auto", unit.id), 160);
-    return;
-  }
-
-  playProjectile(unit, from.x, from.y, toX, skill);
-  window.setTimeout(() => damageEnemy(damage, manual ? "manual" : "auto", unit.id), 300);
-}
-
-function playProjectile(unit, fromX, fromY, toX, skill = false) {
-  const shot = document.createElement("span");
-  shot.className = `projectile is-${unit.attackType}${skill ? " is-skill" : ""}`;
-  shot.style.setProperty("--from-x", `${fromX}%`);
-  shot.style.setProperty("--from-y", `${fromY}px`);
-  shot.style.setProperty("--to-x", `${toX}%`);
-  shot.style.setProperty("--shot-color", unit.color);
-  effectLayer.appendChild(shot);
-  window.setTimeout(() => shot.remove(), 420);
-  pulseUnit(unit.id, "is-attacking", 320);
-}
-
-function playSlash(unit, toX, skill = false) {
-  const ally = allyLayer.querySelector(`[data-unit-id="${unit.id}"]`);
-  if (ally) {
-    ally.style.setProperty("--slash-x", `${Math.max(36, toX - 9)}%`);
-    ally.classList.add("is-slashing");
-    window.setTimeout(() => ally.classList.remove("is-slashing"), 300);
-  }
-
-  const slash = document.createElement("span");
-  slash.className = `slash-effect${skill ? " is-skill" : ""}`;
-  slash.style.setProperty("--hit-x", `${toX}%`);
-  effectLayer.appendChild(slash);
-  window.setTimeout(() => slash.remove(), 320);
-}
-
-function showDamage(amount) {
-  const damage = document.createElement("span");
-  damage.className = "damage-number";
-  damage.textContent = `-${amount}`;
-  damage.style.setProperty("--hit-x", `${state.enemyX}%`);
-  effectLayer.appendChild(damage);
-  window.setTimeout(() => damage.remove(), 760);
-}
-
-function pulseUnit(unitId, className, duration) {
-  const ally = allyLayer.querySelector(`[data-unit-id="${unitId}"]`);
-  if (!ally) return;
-  ally.classList.add(className);
-  window.setTimeout(() => ally.classList.remove(className), duration);
-}
-
-function getUnitPosition(unitId) {
-  const index = getUnits().findIndex((unit) => unit.id === unitId);
-  return {
-    x: 14 + Math.max(0, index) * 7,
-    y: 42 + (index % 2) * 66,
-  };
+function costFor(baseCost, count) {
+  return Math.floor(baseCost * Math.pow(1.32, count));
 }
 
 function buyRecruit(id) {
@@ -363,9 +464,9 @@ function buyRecruit(id) {
 
   state.gold -= cost;
   state.recruits[id] = count + 1;
-  basicAttackCooldown = Math.min(basicAttackCooldown, 0.25);
+  basicAttackCooldown = Math.min(basicAttackCooldown, 0.2);
   log(`${recruit.name} 영입 완료. 전투 화면에 배치되었습니다.`);
-  render();
+  renderAll();
 }
 
 function buyTool(id) {
@@ -378,7 +479,7 @@ function buyTool(id) {
   state.tools[id] = level + 1;
   if (tool.click) state.clickPower += tool.click;
   log(`${tool.name} 강화 완료`);
-  render();
+  renderAll();
 }
 
 function upgradePlayer() {
@@ -389,17 +490,41 @@ function upgradePlayer() {
   state.playerLevel += 1;
   state.clickPower += 1;
   log("대표 역량이 강화되었습니다.");
-  render();
+  renderAll();
 }
 
-function nextStage() {
-  state.stage += 1;
-  spawnEnemy();
-  render();
+function switchTab(tab) {
+  document.querySelectorAll(".tab-button").forEach((button) => button.classList.toggle("is-active", button === tab));
+  document
+    .querySelectorAll(".tab-panel")
+    .forEach((panel) => panel.classList.toggle("is-active", panel.dataset.panel === tab.dataset.tab));
 }
 
-function log(message) {
-  battleLog.textContent = message;
+function renderAll() {
+  renderAllies();
+  renderShop();
+  renderBattle();
+}
+
+function renderBattle() {
+  const hpPercent = Math.max(0, Math.round((state.enemyHp / state.enemyMaxHp) * 100));
+  const playerCost = Math.floor(18 * Math.pow(1.4, state.playerLevel - 1));
+
+  refs.goldText.textContent = Math.floor(state.gold);
+  refs.ideaText.textContent = Math.floor(state.idea);
+  refs.stageText.textContent = state.stage;
+  setText(refs.dpsText, `초당 기여도 ${getTotalDps()}`);
+  setText(refs.enemyName, getEnemyName());
+  refs.enemy.style.setProperty("--enemy-x", `${state.enemyX}%`);
+  refs.enemyHpBar.style.width = `${hpPercent}%`;
+  setText(refs.enemyHpText, `${Math.ceil(state.enemyHp)} / ${state.enemyMaxHp}`);
+  setText(refs.teamCountText, `${getTeamCount()}명`);
+  setText(refs.clickPowerText, state.clickPower);
+  setText(refs.clearCountText, `${state.clearCount}건`);
+  setText(refs.playTimeText, formatTime(state.elapsed));
+  setText(refs.attackTimerText, `${Math.max(0, Math.min(basicAttackCooldown, skillAttackCooldown)).toFixed(1)}초`);
+  refs.upgradePlayerButton.textContent = `대표 역량 강화 (${playerCost} 자금)`;
+  refs.upgradePlayerButton.disabled = state.gold < playerCost;
 }
 
 function renderAllies() {
@@ -408,7 +533,7 @@ function renderAllies() {
   if (rosterKey === lastRosterKey) return;
 
   lastRosterKey = rosterKey;
-  allyLayer.innerHTML = units
+  refs.allyLayer.innerHTML = units
     .map((unit, index) => {
       const x = 14 + index * 7;
       const y = 42 + (index % 2) * 66;
@@ -427,7 +552,7 @@ function renderAllies() {
 }
 
 function renderShop() {
-  recruitList.innerHTML = recruits
+  refs.recruitList.innerHTML = recruits
     .map((recruit) => {
       const count = getRecruitCount(recruit.id);
       const cost = costFor(recruit.baseCost, count);
@@ -443,7 +568,7 @@ function renderShop() {
     })
     .join("");
 
-  toolList.innerHTML = tools
+  refs.toolList.innerHTML = tools
     .map((tool) => {
       const level = getToolLevel(tool.id);
       const cost = costFor(tool.baseCost, level);
@@ -460,130 +585,16 @@ function renderShop() {
     .join("");
 }
 
-function render() {
-  const hpPercent = Math.max(0, Math.round((state.enemyHp / state.enemyMaxHp) * 100));
-  const playerCost = Math.floor(18 * Math.pow(1.4, state.playerLevel - 1));
-
-  goldText.textContent = Math.floor(state.gold);
-  ideaText.textContent = Math.floor(state.idea);
-  stageText.textContent = state.stage;
-  dpsText.textContent = `초당 기여도 ${getTotalDps()}`;
-  enemyName.textContent = getEnemyName();
-  enemy.style.setProperty("--enemy-x", `${state.enemyX}%`);
-  enemyHpBar.style.width = `${hpPercent}%`;
-  enemyHpText.textContent = `${Math.ceil(state.enemyHp)} / ${state.enemyMaxHp}`;
-  teamCountText.textContent = `${getTeamCount()}명`;
-  clickPowerText.textContent = state.clickPower;
-  clearCountText.textContent = `${state.clearCount}건`;
-  playTimeText.textContent = formatTime(state.elapsed);
-  attackTimerText.textContent = `${Math.max(0, nextAttackHint).toFixed(1)}초`;
-  $("#upgradePlayerButton").textContent = `대표 역량 강화 (${playerCost} 자금)`;
-  $("#upgradePlayerButton").disabled = state.gold < playerCost;
-  renderAllies();
-  renderShop();
-}
-
 function formatTime(seconds) {
   const minutes = Math.floor(seconds / 60).toString().padStart(2, "0");
   const rest = Math.floor(seconds % 60).toString().padStart(2, "0");
   return `${minutes}:${rest}`;
 }
 
-function updateAutoCombat(delta) {
-  if (!canAttackEnemy()) {
-    nextAttackHint = 1;
-    return;
-  }
-
-  basicAttackCooldown -= delta;
-  skillAttackCooldown -= delta;
-
-  if (basicAttackCooldown <= 0) {
-    basicAttackCooldown += 1;
-    performAttackRound(false);
-  }
-
-  if (skillAttackCooldown <= 0) {
-    skillAttackCooldown += PLAYER_SKILL_RATE;
-    performAttackRound(true);
-    log("팀 스킬 공격!");
-  }
-
-  nextAttackHint = Math.min(basicAttackCooldown, skillAttackCooldown);
+function setText(element, value) {
+  if (element) element.textContent = value;
 }
 
-function performAttackRound(skill) {
-  getUnits().forEach((unit, index) => {
-    window.setTimeout(() => attackWithUnit(unit, { skill }), index * 120);
-  });
+function log(message) {
+  if (refs && refs.battleLog) refs.battleLog.textContent = message;
 }
-
-function gameLoop(now) {
-  const delta = Math.min(0.2, (now - lastTick) / 1000);
-  lastTick = now;
-  state.elapsed += delta;
-  saveCooldown += delta;
-
-  moveEnemy(delta);
-  updateAutoCombat(delta);
-
-  if (saveCooldown >= 10) {
-    saveCooldown = 0;
-    saveState("자동 저장 완료");
-  }
-
-  render();
-  requestAnimationFrame(gameLoop);
-}
-
-document.addEventListener("click", (event) => {
-  const tab = event.target.closest("[data-tab]");
-  const recruitButton = event.target.closest("[data-buy-recruit]");
-  const toolButton = event.target.closest("[data-buy-tool]");
-
-  if (tab) {
-    document.querySelectorAll(".tab-button").forEach((button) => button.classList.toggle("is-active", button === tab));
-    document
-      .querySelectorAll(".tab-panel")
-      .forEach((panel) => panel.classList.toggle("is-active", panel.dataset.panel === tab.dataset.tab));
-  }
-
-  if (recruitButton) buyRecruit(recruitButton.dataset.buyRecruit);
-  if (toolButton) buyTool(toolButton.dataset.buyTool);
-});
-
-$("#manualWorkButton").addEventListener("click", () => {
-  attackWithUnit({
-    id: "player",
-    shortName: "대표",
-    color: "#059669",
-    attackType: "code",
-    power: state.clickPower,
-  }, { manual: true });
-});
-$("#upgradePlayerButton").addEventListener("click", upgradePlayer);
-$("#nextStageButton").addEventListener("click", nextStage);
-$("#saveButton").addEventListener("click", () => saveState("수동 저장 완료"));
-$("#resetButton").addEventListener("click", () => {
-  try {
-    window.localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    saveStateText.textContent = "저장소 접근 불가";
-  }
-  state = cloneDefaultState();
-  lastRosterKey = "";
-  spawnEnemy();
-  saveState("초기화 완료");
-  render();
-});
-
-if (state.enemyHp <= 0 || !state.enemyMaxHp) {
-  spawnEnemy();
-}
-
-if (!state.enemyX) {
-  state.enemyX = ENEMY_SPAWN_X;
-}
-
-render();
-requestAnimationFrame(gameLoop);

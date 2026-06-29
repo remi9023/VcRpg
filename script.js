@@ -1,6 +1,7 @@
 const STORAGE_KEY = "studioCrewRpgSave";
 const ENEMY_SPAWN_X = 86;
 const ENEMY_CONTACT_X = 38;
+const ENEMY_MAX_COUNT = 5;
 const BASIC_ATTACK_RATE = 1;
 const SKILL_ATTACK_RATE = 4;
 const TICK_RATE = 1000 / 30;
@@ -68,6 +69,7 @@ const defaultState = {
   enemyHp: 10,
   enemyMaxHp: 10,
   enemyX: ENEMY_SPAWN_X,
+  enemies: [],
   clickPower: 1,
   playerLevel: 1,
   clearCount: 0,
@@ -85,6 +87,7 @@ let skillAttackCooldown = SKILL_ATTACK_RATE;
 let saveCooldown = 0;
 let lastTick = Date.now();
 let gameTimer = null;
+let enemySeq = 0;
 
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initGame);
@@ -100,10 +103,7 @@ function initGame() {
     ideaText: document.querySelector("#ideaText"),
     stageText: document.querySelector("#stageText"),
     dpsText: document.querySelector("#dpsText"),
-    enemy: document.querySelector("#enemy"),
-    enemyName: document.querySelector("#enemyName"),
-    enemyHpBar: document.querySelector("#enemyHpBar"),
-    enemyHpText: document.querySelector("#enemyHpText"),
+    enemyLayer: document.querySelector("#enemyLayer"),
     battleLog: document.querySelector("#battleLog"),
     teamCountText: document.querySelector("#teamCountText"),
     clickPowerText: document.querySelector("#clickPowerText"),
@@ -121,8 +121,8 @@ function initGame() {
   };
 
   state = loadState();
-  if (state.enemyHp <= 0 || state.enemyX <= ENEMY_CONTACT_X || !state.enemyMaxHp) {
-    spawnEnemy();
+  if (!state.enemies.length) {
+    spawnWave();
   }
 
   bindEvents();
@@ -147,7 +147,7 @@ function bindEvents() {
   refs.upgradePlayerButton.addEventListener("click", upgradePlayer);
   refs.nextStageButton.addEventListener("click", () => {
     state.stage += 1;
-    spawnEnemy();
+    spawnWave();
     renderAll();
   });
   refs.saveButton.addEventListener("click", () => saveState("수동 저장 완료"));
@@ -170,7 +170,7 @@ function tick(delta) {
     state.elapsed += delta;
     saveCooldown += delta;
 
-    moveEnemy(delta);
+    moveEnemies(delta);
     updateAutoCombat(delta);
 
     if (saveCooldown >= 10) {
@@ -208,6 +208,7 @@ function normalizeState(nextState) {
     enemyHp: Math.max(0, Number(nextState.enemyHp) || defaultState.enemyHp),
     enemyMaxHp: Math.max(1, Number(nextState.enemyMaxHp) || defaultState.enemyMaxHp),
     enemyX: Number(nextState.enemyX) || ENEMY_SPAWN_X,
+    enemies: normalizeEnemies(nextState.enemies),
     clickPower: Math.max(1, Number(nextState.clickPower) || 1),
     playerLevel: Math.max(1, Number(nextState.playerLevel) || 1),
     clearCount: Math.max(0, Number(nextState.clearCount) || 0),
@@ -234,38 +235,79 @@ function resetGame() {
   }
   state = cloneDefaultState();
   lastRosterKey = "";
-  spawnEnemy();
+  spawnWave();
   renderAll();
   saveState("초기화 완료");
 }
 
-function spawnEnemy() {
-  const hp = Math.floor(8 + state.stage * 8 + Math.pow(state.stage, 1.45) * 5);
-  state.enemyMaxHp = hp;
-  state.enemyHp = hp;
+function normalizeEnemies(enemies) {
+  if (!Array.isArray(enemies)) return [];
+  return enemies
+    .map((enemy, index) => ({
+      id: enemy.id || `saved-${index}`,
+      name: enemy.name || getEnemyName(),
+      hp: Math.max(1, Number(enemy.hp) || 1),
+      maxHp: Math.max(1, Number(enemy.maxHp) || 1),
+      x: Number(enemy.x) || ENEMY_SPAWN_X,
+      y: Number(enemy.y) || getEnemyLaneY(index),
+      lane: Number(enemy.lane) || index,
+    }))
+    .filter((enemy) => enemy.hp > 0);
+}
+
+function spawnWave() {
+  const count = getWaveEnemyCount();
+  const hp = getEnemyHp();
+  state.enemies = Array.from({ length: count }, (_, index) => ({
+    id: `enemy-${Date.now()}-${enemySeq++}`,
+    name: getEnemyName(),
+    hp,
+    maxHp: hp,
+    x: ENEMY_SPAWN_X + index * 4,
+    y: getEnemyLaneY(index),
+    lane: index,
+  }));
+  state.enemyMaxHp = hp * count;
+  state.enemyHp = state.enemies.reduce((sum, enemy) => sum + enemy.hp, 0);
   state.enemyX = ENEMY_SPAWN_X;
   isSpawningNext = false;
   basicAttackCooldown = 0.35;
   skillAttackCooldown = SKILL_ATTACK_RATE;
-  if (refs && refs.enemy) refs.enemy.classList.remove("is-defeated");
-  log(`${getEnemyName()} 업무가 오른쪽에서 접근합니다.`);
+  log(`${getEnemyName()} ${count}건이 오른쪽에서 접근합니다.`);
 }
 
-function moveEnemy(delta) {
-  if (isSpawningNext || state.enemyHp <= 0) return;
+function getWaveEnemyCount() {
+  return Math.min(ENEMY_MAX_COUNT, 2 + Math.floor((state.stage - 1) / 2));
+}
 
-  const speed = Math.min(5.4, 2.5 + state.stage * 0.08);
-  state.enemyX = Math.max(ENEMY_CONTACT_X, state.enemyX - speed * delta);
+function getEnemyHp() {
+  return Math.floor(7 + state.stage * 2.4);
+}
 
-  if (state.enemyX <= ENEMY_CONTACT_X) {
-    state.enemyX = ENEMY_SPAWN_X;
-    state.enemyHp = Math.min(state.enemyMaxHp, state.enemyHp + Math.ceil(state.enemyMaxHp * 0.12));
-    log("업무가 팀 앞까지 밀려와 일정 압박이 커졌습니다.");
-  }
+function getEnemyLaneY(index) {
+  const lanes = [34, 62, 90, 118, 48];
+  return lanes[index % lanes.length];
+}
+
+function moveEnemies(delta) {
+  if (isSpawningNext || !state.enemies.length) return;
+
+  const speed = Math.min(5.2, 2.2 + state.stage * 0.06);
+  state.enemies.forEach((enemy) => {
+    enemy.x = Math.max(ENEMY_CONTACT_X, enemy.x - speed * delta);
+
+    if (enemy.x <= ENEMY_CONTACT_X) {
+      enemy.x = ENEMY_SPAWN_X + enemy.lane * 3;
+      enemy.hp = Math.min(enemy.maxHp, enemy.hp + Math.ceil(enemy.maxHp * 0.1));
+      log("업무가 팀 앞까지 밀려와 일정 압박이 커졌습니다.");
+    }
+  });
+
+  syncEnemySummary();
 }
 
 function updateAutoCombat(delta) {
-  if (isSpawningNext || state.enemyHp <= 0) return;
+  if (isSpawningNext || !state.enemies.length) return;
 
   basicAttackCooldown -= delta;
   skillAttackCooldown -= delta;
@@ -289,7 +331,8 @@ function performAttackRound(skill) {
 }
 
 function attackUnit(unit, options = {}) {
-  if (isSpawningNext || state.enemyHp <= 0) return;
+  const target = getTargetEnemy();
+  if (isSpawningNext || !target) return;
 
   const skill = Boolean(options.skill);
   const manual = Boolean(options.manual);
@@ -297,81 +340,109 @@ function attackUnit(unit, options = {}) {
   const damage = skill ? Math.ceil(unit.power * 2.8 + state.playerLevel) : unit.power;
 
   if (unit.attackType === "slash") {
-    playSlash(unit, skill);
-    window.setTimeout(() => damageEnemy(damage, manual), 140);
+    playSlash(unit, target, skill);
+    window.setTimeout(() => damageEnemy(target.id, damage, manual), 140);
   } else {
-    playProjectile(unit, from, skill);
-    window.setTimeout(() => damageEnemy(damage, manual), 240);
+    playProjectile(unit, from, target, skill);
+    window.setTimeout(() => damageEnemy(target.id, damage, manual), 240);
   }
 }
 
-function playProjectile(unit, from, skill) {
+function playProjectile(unit, from, target, skill) {
   const shot = document.createElement("span");
   shot.className = `projectile is-${unit.attackType}${skill ? " is-skill" : ""}`;
   shot.style.setProperty("--from-x", `${from.x}%`);
   shot.style.setProperty("--from-y", `${from.y}px`);
-  shot.style.setProperty("--to-x", `${state.enemyX}%`);
+  shot.style.setProperty("--to-x", `${target.x}%`);
   shot.style.setProperty("--shot-color", unit.color);
   refs.effectLayer.appendChild(shot);
   pulseUnit(unit.id, "is-attacking", 320);
   window.setTimeout(() => shot.remove(), 480);
 }
 
-function playSlash(unit, skill) {
+function playSlash(unit, target, skill) {
   const ally = refs.allyLayer.querySelector(`[data-unit-id="${unit.id}"]`);
   if (ally) {
-    ally.style.setProperty("--slash-x", `${Math.max(36, state.enemyX - 9)}%`);
+    ally.style.setProperty("--slash-x", `${Math.max(36, target.x - 9)}%`);
     ally.classList.add("is-slashing");
     window.setTimeout(() => ally.classList.remove("is-slashing"), 300);
   }
 
   const slash = document.createElement("span");
   slash.className = `slash-effect${skill ? " is-skill" : ""}`;
-  slash.style.setProperty("--hit-x", `${state.enemyX}%`);
+  slash.style.setProperty("--hit-x", `${target.x}%`);
   refs.effectLayer.appendChild(slash);
   window.setTimeout(() => slash.remove(), 360);
 }
 
-function damageEnemy(amount, manual) {
-  if (isSpawningNext || state.enemyHp <= 0) return;
+function damageEnemy(enemyId, amount, manual) {
+  if (isSpawningNext) return;
+
+  const target = state.enemies.find((enemy) => enemy.id === enemyId) || getTargetEnemy();
+  if (!target) return;
 
   const finalAmount = Math.max(1, Math.round(amount * getGlobalMultiplier()));
-  state.enemyHp = Math.max(0, state.enemyHp - finalAmount);
-  showDamage(finalAmount);
-  refs.enemy.classList.add("is-hit");
-  window.setTimeout(() => refs.enemy.classList.remove("is-hit"), 120);
+  target.hp = Math.max(0, target.hp - finalAmount);
+  showDamage(finalAmount, target);
+  pulseEnemy(target.id);
 
-  if (state.enemyHp <= 0) {
-    completeEnemy(manual);
+  if (target.hp <= 0) {
+    defeatEnemy(target.id, manual);
   } else if (manual) {
     log(`직접 처리로 ${finalAmount} 기여도를 넣었습니다.`);
   }
+  syncEnemySummary();
 }
 
-function completeEnemy(manual) {
-  if (isSpawningNext) return;
-
-  isSpawningNext = true;
-  const goldGain = Math.floor(6 + state.stage * 4);
-  const ideaGain = manual ? 2 : 1;
+function defeatEnemy(enemyId, manual) {
+  state.enemies = state.enemies.filter((enemy) => enemy.id !== enemyId);
+  const goldGain = Math.floor(3 + state.stage * 1.2);
+  const ideaGain = manual ? 1 : 0;
   state.gold += goldGain;
   state.idea += ideaGain;
   state.clearCount += 1;
-  refs.enemy.classList.add("is-defeated");
-  log(`업무 완료! 자금 +${goldGain}, 아이디어 +${ideaGain}`);
+
+  if (!state.enemies.length) completeWave(manual);
+}
+
+function completeWave(manual) {
+  if (isSpawningNext) return;
+
+  isSpawningNext = true;
+  const bonusIdea = manual ? 1 : 2;
+  state.idea += bonusIdea;
+  log(`웨이브 완료! 아이디어 +${bonusIdea}`);
 
   window.setTimeout(() => {
     state.stage += 1;
-    spawnEnemy();
+    spawnWave();
     renderAll();
   }, 520);
 }
 
-function showDamage(amount) {
+function getTargetEnemy() {
+  return [...state.enemies].sort((a, b) => a.x - b.x || a.y - b.y)[0] || null;
+}
+
+function pulseEnemy(enemyId) {
+  const enemy = refs.enemyLayer.querySelector(`[data-enemy-id="${enemyId}"]`);
+  if (!enemy) return;
+  enemy.classList.add("is-hit");
+  window.setTimeout(() => enemy.classList.remove("is-hit"), 120);
+}
+
+function syncEnemySummary() {
+  state.enemyHp = state.enemies.reduce((sum, enemy) => sum + enemy.hp, 0);
+  state.enemyMaxHp = state.enemies.reduce((sum, enemy) => sum + enemy.maxHp, 0) || 1;
+  state.enemyX = getTargetEnemy()?.x || ENEMY_SPAWN_X;
+}
+
+function showDamage(amount, target) {
   const damage = document.createElement("span");
   damage.className = "damage-number";
   damage.textContent = `-${amount}`;
-  damage.style.setProperty("--hit-x", `${state.enemyX}%`);
+  damage.style.setProperty("--hit-x", `${target.x}%`);
+  damage.style.setProperty("--hit-y", `${target.y + 92}px`);
   refs.effectLayer.appendChild(damage);
   window.setTimeout(() => damage.remove(), 760);
 }
@@ -414,10 +485,7 @@ function getUnits() {
 
 function getUnitPosition(unitId) {
   const index = Math.max(0, getUnits().findIndex((unit) => unit.id === unitId));
-  return {
-    x: 14 + index * 7,
-    y: 42 + (index % 2) * 66,
-  };
+  return getAllyPosition(index);
 }
 
 function getRecruitCount(id) {
@@ -503,6 +571,7 @@ function switchTab(tab) {
 function renderAll() {
   renderAllies();
   renderShop();
+  renderEnemies();
   renderBattle();
 }
 
@@ -514,10 +583,7 @@ function renderBattle() {
   refs.ideaText.textContent = Math.floor(state.idea);
   refs.stageText.textContent = state.stage;
   setText(refs.dpsText, `초당 기여도 ${getTotalDps()}`);
-  setText(refs.enemyName, getEnemyName());
-  refs.enemy.style.setProperty("--enemy-x", `${state.enemyX}%`);
-  refs.enemyHpBar.style.width = `${hpPercent}%`;
-  setText(refs.enemyHpText, `${Math.ceil(state.enemyHp)} / ${state.enemyMaxHp}`);
+  renderEnemies();
   setText(refs.teamCountText, `${getTeamCount()}명`);
   setText(refs.clickPowerText, state.clickPower);
   setText(refs.clearCountText, `${state.clearCount}건`);
@@ -525,6 +591,26 @@ function renderBattle() {
   setText(refs.attackTimerText, `${Math.max(0, Math.min(basicAttackCooldown, skillAttackCooldown)).toFixed(1)}초`);
   refs.upgradePlayerButton.textContent = `대표 역량 강화 (${playerCost} 자금)`;
   refs.upgradePlayerButton.disabled = state.gold < playerCost;
+}
+
+function renderEnemies() {
+  refs.enemyLayer.innerHTML = state.enemies
+    .map((enemy) => {
+      const hpPercent = Math.max(0, Math.round((enemy.hp / enemy.maxHp) * 100));
+      return `
+        <div class="enemy" data-enemy-id="${enemy.id}" style="--enemy-x: ${enemy.x}%; --enemy-y: ${enemy.y}px;">
+          <img src="assets/enemy.svg" alt="버그 몬스터" class="enemy-sprite" />
+          <div class="enemy-card">
+            <strong>${enemy.name}</strong>
+            <div class="hp-bar" aria-label="상대 체력">
+              <span style="width: ${hpPercent}%"></span>
+            </div>
+            <small>${Math.ceil(enemy.hp)} / ${enemy.maxHp}</small>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
 }
 
 function renderAllies() {
@@ -535,20 +621,30 @@ function renderAllies() {
   lastRosterKey = rosterKey;
   refs.allyLayer.innerHTML = units
     .map((unit, index) => {
-      const x = 14 + index * 7;
-      const y = 42 + (index % 2) * 66;
+      const position = getAllyPosition(index);
       const countText = unit.count > 1 ? ` x${unit.count}` : "";
       const spriteMarkup = unit.sprite
         ? `<img src="${unit.sprite}" alt="${unit.name}" class="ally-sprite-image" />`
         : `<span class="ally-sprite">${unit.mark}</span>`;
       return `
-        <div class="ally" data-unit-id="${unit.id}" style="--ally-x: ${x}%; --ally-y: ${y}px; --ally-color: ${unit.color};">
+        <div class="ally" data-unit-id="${unit.id}" style="--ally-x: ${position.x}%; --ally-y: ${position.y}px; --ally-color: ${unit.color};">
           ${spriteMarkup}
           <span class="ally-role">${unit.shortName}${countText}</span>
         </div>
       `;
     })
     .join("");
+}
+
+function getAllyPosition(index) {
+  const positions = [
+    { x: 15, y: 64 },
+    { x: 24, y: 42 },
+    { x: 24, y: 106 },
+    { x: 32, y: 72 },
+    { x: 20, y: 138 },
+  ];
+  return positions[index] || { x: 16 + index * 5, y: 42 + (index % 3) * 46 };
 }
 
 function renderShop() {

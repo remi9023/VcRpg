@@ -97,6 +97,7 @@ h1 {
 .office-backdrop,
 .ally-layer,
 .effect-layer,
+.enemy-layer,
 .enemy {
   position: absolute;
 }
@@ -144,6 +145,7 @@ h1 {
 }
 
 .ally-layer,
+.enemy-layer,
 .effect-layer {
   inset: 0;
   pointer-events: none;
@@ -227,11 +229,11 @@ h1 {
 
 .enemy {
   left: var(--enemy-x, 78%);
-  bottom: 38px;
+  bottom: var(--enemy-y, 38px);
   display: grid;
   justify-items: center;
-  gap: 6px;
-  width: 150px;
+  gap: 4px;
+  width: 112px;
   transform: translateX(-50%);
   transition: left 0.08s linear, transform 0.18s ease, opacity 0.18s ease;
   z-index: 4;
@@ -247,10 +249,18 @@ h1 {
 }
 
 .enemy-sprite {
-  width: 98px;
-  height: 98px;
+  width: 66px;
+  height: 66px;
   filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.14));
   animation: enemy-walk 0.72s ease-in-out infinite;
+}
+
+.enemy:nth-child(2n) .enemy-sprite {
+  animation-delay: 0.16s;
+}
+
+.enemy:nth-child(3n) .enemy-sprite {
+  animation-delay: 0.32s;
 }
 
 .hp-bar {
@@ -334,7 +344,7 @@ h1 {
 .damage-number {
   position: absolute;
   left: var(--hit-x);
-  bottom: 158px;
+  bottom: var(--hit-y, 158px);
   color: #b91c1c;
   font-size: 18px;
   font-weight: 800;

@@ -20,7 +20,7 @@
         </div>
       </header>
 
-      <section class="battlefield" aria-label="전투 화면">
+      <section class="battlefield" id="battlefield" aria-label="전투 화면">
         <div class="office-backdrop">
           <span class="window"></span>
           <span class="desk desk-left"></span>
@@ -28,13 +28,8 @@
           <span class="plant"></span>
         </div>
 
-        <div class="hero-group" aria-label="아군 팀">
-          <img src="assets/player.svg" alt="주인공 개발자" class="hero-sprite" />
-          <div class="nameplate">
-            <strong id="companyName">1인 개발사</strong>
-            <span id="dpsText">초당 기여도 1</span>
-          </div>
-        </div>
+        <div id="allyLayer" class="ally-layer" aria-label="아군 팀"></div>
+        <div id="effectLayer" class="effect-layer" aria-hidden="true"></div>
 
         <div id="enemy" class="enemy" aria-label="상대 프로젝트">
           <img src="assets/enemy.svg" alt="버그 몬스터" class="enemy-sprite" />

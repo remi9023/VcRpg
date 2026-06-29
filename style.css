@@ -184,6 +184,13 @@ h1 {
   box-shadow: 0 7px 0 rgba(0, 0, 0, 0.16);
 }
 
+.ally-sprite-image {
+  width: 66px;
+  height: 82px;
+  object-fit: contain;
+  filter: drop-shadow(0 7px 0 rgba(0, 0, 0, 0.16));
+}
+
 .ally-role {
   margin-top: 5px;
   padding: 3px 6px;
@@ -524,6 +531,11 @@ h1 {
     width: 48px;
     height: 60px;
     font-size: 21px;
+  }
+
+  .ally-sprite-image {
+    width: 54px;
+    height: 68px;
   }
 
   .ally-role {

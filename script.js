@@ -112,19 +112,41 @@ function cloneDefaultState() {
 }
 
 function loadState() {
-  const saved = localStorage.getItem(STORAGE_KEY);
-  if (!saved) return cloneDefaultState();
-
   try {
-    return { ...cloneDefaultState(), ...JSON.parse(saved) };
+    const saved = window.localStorage.getItem(STORAGE_KEY);
+    if (!saved) return cloneDefaultState();
+    return normalizeState({ ...cloneDefaultState(), ...JSON.parse(saved) });
   } catch {
     return cloneDefaultState();
   }
 }
 
 function saveState(message = "저장 완료") {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    message = "저장소 접근 불가";
+  }
   saveStateText.textContent = message;
+}
+
+function normalizeState(nextState) {
+  return {
+    ...cloneDefaultState(),
+    ...nextState,
+    gold: Number(nextState.gold) || 0,
+    idea: Number(nextState.idea) || 0,
+    stage: Math.max(1, Number(nextState.stage) || 1),
+    enemyHp: Math.max(0, Number(nextState.enemyHp) || defaultState.enemyHp),
+    enemyMaxHp: Math.max(1, Number(nextState.enemyMaxHp) || defaultState.enemyMaxHp),
+    enemyX: Number(nextState.enemyX) || ENEMY_SPAWN_X,
+    clickPower: Math.max(1, Number(nextState.clickPower) || 1),
+    playerLevel: Math.max(1, Number(nextState.playerLevel) || 1),
+    clearCount: Math.max(0, Number(nextState.clearCount) || 0),
+    elapsed: Math.max(0, Number(nextState.elapsed) || 0),
+    recruits: nextState.recruits && typeof nextState.recruits === "object" ? nextState.recruits : {},
+    tools: nextState.tools && typeof nextState.tools === "object" ? nextState.tools : {},
+  };
 }
 
 function getRecruitCount(id) {
@@ -173,6 +195,7 @@ function getUnits() {
       shortName: "대표",
       mark: "C",
       color: "#059669",
+      sprite: "assets/player.svg",
       count: 1,
       power: state.playerLevel,
       attackType: "code",
@@ -377,9 +400,12 @@ function renderAllies() {
       const x = 14 + index * 7;
       const y = 42 + (index % 2) * 66;
       const countText = unit.count > 1 ? ` x${unit.count}` : "";
+      const spriteMarkup = unit.sprite
+        ? `<img src="${unit.sprite}" alt="${unit.name}" class="ally-sprite-image" />`
+        : `<span class="ally-sprite">${unit.mark}</span>`;
       return `
         <div class="ally" data-unit-id="${unit.id}" style="--ally-x: ${x}%; --ally-y: ${y}px; --ally-color: ${unit.color};">
-          <span class="ally-sprite">${unit.mark}</span>
+          ${spriteMarkup}
           <span class="ally-role">${unit.shortName}${countText}</span>
         </div>
       `;
@@ -512,8 +538,13 @@ $("#upgradePlayerButton").addEventListener("click", upgradePlayer);
 $("#nextStageButton").addEventListener("click", nextStage);
 $("#saveButton").addEventListener("click", () => saveState("수동 저장 완료"));
 $("#resetButton").addEventListener("click", () => {
-  localStorage.removeItem(STORAGE_KEY);
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    saveStateText.textContent = "저장소 접근 불가";
+  }
   state = cloneDefaultState();
+  lastRosterKey = "";
   spawnEnemy();
   saveState("초기화 완료");
   render();

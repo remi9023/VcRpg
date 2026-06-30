@@ -232,12 +232,22 @@ h1 {
   background-position: 50% 0;
 }
 
+.ally.is-attacking .ally-state-sprite {
+  background-image: var(--attack-url);
+  transform: scale(1.04);
+}
+
 .ally.is-skill {
   animation: ally-ranged-attack 0.52s ease-out;
 }
 
 .ally.is-skill .ally-sprite-sheet {
   background-position: 100% 0;
+}
+
+.ally.is-skill .ally-state-sprite {
+  background-image: var(--skill-url);
+  transform: scale(1.08);
 }
 
 .ally.is-slashing {
@@ -276,6 +286,17 @@ h1 {
   background-repeat: no-repeat;
   background-size: 300% 100%;
   background-position: 0 0;
+  filter: drop-shadow(0 7px 0 rgba(0, 0, 0, 0.16));
+}
+
+.ally-state-sprite {
+  display: block;
+  width: 72px;
+  height: 72px;
+  background-image: var(--idle-url);
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center bottom;
   filter: drop-shadow(0 7px 0 rgba(0, 0, 0, 0.16));
 }
 
@@ -809,6 +830,11 @@ h1 {
     width: 54px;
     height: 54px;
     background-size: 300% 100%, contain;
+  }
+
+  .ally-state-sprite {
+    width: 58px;
+    height: 58px;
   }
 
   .ally.is-attacking .ally-sprite-sheet {

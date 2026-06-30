@@ -24,6 +24,11 @@ const recruits = [
     dps: 1,
     attackType: "plan",
     skill: { type: "chain", name: "일정 공유", targets: 3, multiplier: 1.2 },
+    sprites: {
+      idle: "Anim/Player_2/GD_Idle.png",
+      attack: "Anim/Player_2/GD_ATK.png",
+      skill: "Anim/Player_2/GD_Skill.png",
+    },
   },
   {
     id: "developer",
@@ -680,7 +685,7 @@ function getPlayerUnit(power = state.playerLevel) {
     shortName: "대표",
     mark: "C",
     color: "#059669",
-    spriteSheet: "Anim/Motion.png",
+    spriteSheet: "Anim/Player_1/Motion.png",
     count: 1,
     power,
     attackType: "code",
@@ -859,7 +864,9 @@ function renderAllies() {
     .map((unit, index) => {
       const position = getAllyPosition(index);
       const countText = unit.count > 1 ? ` x${unit.count}` : "";
-      const spriteMarkup = unit.spriteSheet
+      const spriteMarkup = unit.sprites
+        ? `<span class="ally-state-sprite" role="img" aria-label="${unit.name}" style="--idle-url: url('${unit.sprites.idle}'); --attack-url: url('${unit.sprites.attack}'); --skill-url: url('${unit.sprites.skill}')"></span>`
+        : unit.spriteSheet
         ? `<span class="ally-sprite-sheet" role="img" aria-label="${unit.name}" style="--sprite-url: url('${unit.spriteSheet}')"></span>`
         : unit.sprite
         ? `<img src="${unit.sprite}" alt="${unit.name}" class="ally-sprite-image" />`

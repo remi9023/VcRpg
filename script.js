@@ -109,6 +109,7 @@ function initGame() {
     startScreen: document.querySelector("#startScreen"),
     gameShell: document.querySelector("#gameShell"),
     startButton: document.querySelector("#startButton"),
+    battlefield: document.querySelector("#battlefield"),
     effectLayer: document.querySelector("#effectLayer"),
     goldText: document.querySelector("#goldText"),
     ideaText: document.querySelector("#ideaText"),
@@ -687,6 +688,11 @@ function getProgressLabel() {
   return state.battleMode === "boss" ? `${state.chapter}-BOSS` : `${state.chapter}-${state.subStage}`;
 }
 
+function getBattleBackground() {
+  const bgIndex = ((state.chapter - 1) % 3) + 1;
+  return `Resource/BackGround/BG_${bgIndex}.png`;
+}
+
 function deriveSubStageFromLegacy(stage) {
   const legacyStage = Math.max(1, Number(stage) || 1);
   return ((legacyStage - 1) % NORMAL_STAGES_PER_CHAPTER) + 1;
@@ -754,6 +760,7 @@ function renderBattle() {
   refs.goldText.textContent = Math.floor(state.gold);
   refs.ideaText.textContent = Math.floor(state.idea);
   refs.stageText.textContent = getProgressLabel();
+  refs.battlefield.style.setProperty("--battle-bg", `url("${getBattleBackground()}")`);
   setText(refs.dpsText, `초당 기여도 ${getTotalDps()}`);
   renderEnemies();
   setText(refs.teamCountText, `${getTeamCount()}명`);

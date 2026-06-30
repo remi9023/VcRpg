@@ -212,7 +212,10 @@ h1 {
   overflow: hidden;
   min-height: 250px;
   border-bottom: 2px solid var(--ink);
-  background: linear-gradient(#eef7ff 0 58%, var(--floor) 58% 100%);
+  background-image: var(--battle-bg), linear-gradient(#eef7ff 0 58%, var(--floor) 58% 100%);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
 }
 
 .office-backdrop,
@@ -225,6 +228,7 @@ h1 {
 
 .office-backdrop {
   inset: 0;
+  display: none;
 }
 
 .window {

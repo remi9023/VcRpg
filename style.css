@@ -1,15 +1,16 @@
 :root {
   color-scheme: light;
-  --ink: #202124;
-  --muted: #667085;
-  --line: #cad2df;
-  --paper: #f8fafc;
-  --panel: #ffffff;
-  --accent: #2563eb;
-  --accent-strong: #1d4ed8;
-  --good: #059669;
-  --warn: #c2410c;
-  --floor: #d4a373;
+  --ink: #2d2119;
+  --muted: #6f6251;
+  --line: #a9783a;
+  --paper: #eadbbd;
+  --panel: #fff7e5;
+  --accent: #b85c22;
+  --accent-strong: #7f3518;
+  --accent-gold: #f2b84b;
+  --good: #238b65;
+  --warn: #b83a21;
+  --floor: #b9783e;
 }
 
 * {
@@ -19,7 +20,9 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: #dfe6ef;
+  background:
+    radial-gradient(circle at 50% 0, rgba(242, 184, 75, 0.32), transparent 34%),
+    linear-gradient(180deg, #354f43 0%, #1f2d2a 100%);
   color: var(--ink);
   font-family: Arial, "Noto Sans KR", sans-serif;
 }
@@ -46,7 +49,7 @@ button:disabled {
   place-items: center;
   min-height: 100vh;
   padding: 0;
-  background: #111827;
+  background: #1f2d2a;
 }
 
 .start-scene {
@@ -73,16 +76,17 @@ button:disabled {
   min-width: 190px;
   min-height: 52px;
   padding: 12px 24px;
-  border: 2px solid #111827;
+  border: 2px solid #4a2b17;
   border-radius: 999px;
-  background: var(--accent);
+  background: linear-gradient(180deg, #ffd979 0%, var(--accent) 100%);
   color: #fff;
   font-weight: 800;
-  box-shadow: 0 7px 0 rgba(0, 0, 0, 0.22);
+  text-shadow: 0 1px 0 rgba(45, 33, 25, 0.7);
+  box-shadow: 0 7px 0 rgba(74, 43, 23, 0.72), 0 0 18px rgba(255, 217, 121, 0.35);
 }
 
 .start-button:hover {
-  background: var(--accent-strong);
+  background: linear-gradient(180deg, #ffe7a3 0%, var(--accent-strong) 100%);
 }
 
 .start-button:active {
@@ -97,16 +101,18 @@ button:disabled {
   min-height: 100vh;
   margin: 0 auto;
   background: var(--paper);
-  border-inline: 1px solid #b8c2d0;
+  border-inline: 1px solid #7d5830;
+  box-shadow: 0 0 36px rgba(0, 0, 0, 0.26);
 }
 
 .top-bar {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 16px;
   padding: 12px 14px;
   border-bottom: 2px solid var(--ink);
-  background: #fff;
+  background: linear-gradient(180deg, #fff4d7 0%, #e7c68e 100%);
 }
 
 .eyebrow {
@@ -135,8 +141,27 @@ h1 {
   padding: 5px 8px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: #f8fbff;
+  background: rgba(255, 247, 229, 0.9);
   text-align: center;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.title-return-button {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 2px solid #4a2b17;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #f7c867 0%, #8d4219 100%);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  text-shadow: 0 1px 0 rgba(45, 33, 25, 0.7);
+  box-shadow: 0 3px 0 rgba(74, 43, 23, 0.62);
+}
+
+.title-return-button:hover {
+  background: linear-gradient(180deg, #ffe29a 0%, #6f3014 100%);
 }
 
 .battlefield {
@@ -630,7 +655,7 @@ h1 {
   min-height: 52px;
   padding: 8px 12px;
   border-bottom: 2px solid var(--ink);
-  background: #fff;
+  background: #fff2d3;
 }
 
 #battleLog {
@@ -643,7 +668,7 @@ h1 {
   padding: 4px 7px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: #f8fbff;
+  background: #fff7e5;
   color: var(--muted);
   font-size: 12px;
   font-weight: 700;
@@ -654,14 +679,23 @@ h1 {
 .settings-row button {
   min-height: 38px;
   padding: 8px 12px;
+  border: 2px solid #4a2b17;
   border-radius: 6px;
-  background: var(--accent);
+  background: linear-gradient(180deg, var(--accent-gold) 0%, var(--accent) 100%);
   color: #fff;
   font-weight: 700;
+  text-shadow: 0 1px 0 rgba(45, 33, 25, 0.6);
+  box-shadow: 0 3px 0 rgba(74, 43, 23, 0.45);
+}
+
+#manualWorkButton:hover,
+.action-row button:hover,
+.settings-row button:hover {
+  background: linear-gradient(180deg, #ffd780 0%, var(--accent-strong) 100%);
 }
 
 .panel-area {
-  background: #f7f8fb;
+  background: linear-gradient(180deg, #e7c68e 0%, #d7b174 100%);
 }
 
 .tab-panel {
@@ -688,6 +722,7 @@ h1 {
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--panel);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 .stat-grid span,
@@ -737,10 +772,12 @@ h1 {
 .shop-item button {
   min-width: 92px;
   min-height: 38px;
+  border: 2px solid #4a2b17;
   border-radius: 6px;
-  background: #111827;
+  background: linear-gradient(180deg, #376f56 0%, #1f4636 100%);
   color: #fff;
   font-weight: 700;
+  box-shadow: 0 3px 0 rgba(45, 33, 25, 0.38);
 }
 
 .save-state {
@@ -753,14 +790,14 @@ h1 {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   border-top: 2px solid var(--ink);
-  background: #fff;
+  background: #d0a56c;
 }
 
 .tab-button {
   min-height: 56px;
   border-width: 0 1px 0 0;
   border-color: var(--ink);
-  background: #fff;
+  background: linear-gradient(180deg, #fff4d7 0%, #d6ae72 100%);
   font-size: 14px;
   font-weight: 700;
 }
@@ -770,7 +807,7 @@ h1 {
 }
 
 .tab-button.is-active {
-  background: var(--accent-strong);
+  background: linear-gradient(180deg, #2f8a67 0%, #1c5f48 100%);
   color: #fff;
 }
 
@@ -800,6 +837,11 @@ h1 {
   .resource-row span {
     flex: 1 1 30%;
     min-width: 0;
+  }
+
+  .title-return-button {
+    justify-self: end;
+    min-width: 96px;
   }
 
   .enemy {

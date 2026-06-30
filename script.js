@@ -122,6 +122,7 @@ function initGame() {
     startScreen: document.querySelector("#startScreen"),
     gameShell: document.querySelector("#gameShell"),
     startButton: document.querySelector("#startButton"),
+    headerTitleButton: document.querySelector("#headerTitleButton"),
     battlefield: document.querySelector("#battlefield"),
     effectLayer: document.querySelector("#effectLayer"),
     goldText: document.querySelector("#goldText"),
@@ -181,6 +182,7 @@ function bindEvents() {
   refs.saveButton.addEventListener("click", () => saveState("수동 저장 완료"));
   refs.resetButton.addEventListener("click", resetGame);
   refs.returnTitleButton.addEventListener("click", returnToTitle);
+  refs.headerTitleButton.addEventListener("click", returnToTitle);
   refs.startButton.addEventListener("click", startGame);
 }
 

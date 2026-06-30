@@ -1,4 +1,5 @@
 const STORAGE_KEY = "studioCrewRpgSave";
+const AUDIO_SETTINGS_KEY = "studioCrewRpgAudioSettings";
 const ENEMY_SPAWN_X = 86;
 const ENEMY_CONTACT_X = 38;
 const ENEMY_MAX_COUNT = 5;
@@ -10,6 +11,10 @@ const BGM_TRACKS = {
   title: "Resource/Sound/BGM_Main_Theme.mp3",
   field: "Resource/Sound/BGM_Field.mp3",
   boss: "Resource/Sound/BGM_Boss.mp3",
+};
+const defaultAudioSettings = {
+  volume: 0.45,
+  muted: false,
 };
 
 const recruits = [
@@ -109,6 +114,7 @@ let enemySeq = 0;
 let currentBgmKey = "title";
 let hasStartedGame = false;
 let titleBgmUnlockArmed = false;
+let audioSettings = { ...defaultAudioSettings };
 
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initGame);
@@ -122,6 +128,9 @@ function initGame() {
     startScreen: document.querySelector("#startScreen"),
     gameShell: document.querySelector("#gameShell"),
     startButton: document.querySelector("#startButton"),
+    titleMuteButton: document.querySelector("#titleMuteButton"),
+    titleVolumeSlider: document.querySelector("#titleVolumeSlider"),
+    titleVolumeValue: document.querySelector("#titleVolumeValue"),
     headerTitleButton: document.querySelector("#headerTitleButton"),
     battlefield: document.querySelector("#battlefield"),
     effectLayer: document.querySelector("#effectLayer"),
@@ -145,15 +154,20 @@ function initGame() {
     saveButton: document.querySelector("#saveButton"),
     resetButton: document.querySelector("#resetButton"),
     returnTitleButton: document.querySelector("#returnTitleButton"),
+    muteButton: document.querySelector("#muteButton"),
+    volumeSlider: document.querySelector("#volumeSlider"),
+    volumeValue: document.querySelector("#volumeValue"),
     bgmAudio: document.querySelector("#bgmAudio"),
   };
 
   state = loadState();
+  audioSettings = loadAudioSettings();
   if (!state.enemies.length) {
     spawnWave();
   }
 
   bindEvents();
+  applyAudioSettings();
   renderAll();
   playBgm("title", { silentFail: true });
   armTitleBgmUnlock();
@@ -184,6 +198,10 @@ function bindEvents() {
   refs.returnTitleButton.addEventListener("click", returnToTitle);
   refs.headerTitleButton.addEventListener("click", returnToTitle);
   refs.startButton.addEventListener("click", startGame);
+  refs.muteButton.addEventListener("click", toggleMute);
+  refs.volumeSlider.addEventListener("input", handleVolumeInput);
+  refs.titleMuteButton.addEventListener("click", toggleMute);
+  refs.titleVolumeSlider.addEventListener("input", handleVolumeInput);
 }
 
 function startGame() {
@@ -215,13 +233,78 @@ function playBgm(trackKey, options = {}) {
     currentBgmKey = trackKey;
   }
 
-  refs.bgmAudio.volume = 0.45;
+  applyAudioSettings();
   const playPromise = refs.bgmAudio.play();
   if (playPromise && typeof playPromise.catch === "function") {
     playPromise.catch(() => {
       if (!options.silentFail) log("BGM 재생이 브라우저에서 차단되었습니다.");
     });
   }
+}
+
+function loadAudioSettings() {
+  try {
+    const saved = window.localStorage.getItem(AUDIO_SETTINGS_KEY);
+    if (!saved) return { ...defaultAudioSettings };
+
+    const parsed = JSON.parse(saved);
+    return normalizeAudioSettings(parsed);
+  } catch {
+    return { ...defaultAudioSettings };
+  }
+}
+
+function normalizeAudioSettings(settings) {
+  const volume = Number(settings.volume);
+  return {
+    volume: Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : defaultAudioSettings.volume,
+    muted: Boolean(settings.muted),
+  };
+}
+
+function saveAudioSettings() {
+  try {
+    window.localStorage.setItem(AUDIO_SETTINGS_KEY, JSON.stringify(audioSettings));
+  } catch {
+    log("오디오 설정 저장에 실패했습니다.");
+  }
+}
+
+function applyAudioSettings() {
+  if (!refs.bgmAudio) return;
+
+  const volumePercent = Math.round(audioSettings.volume * 100);
+  refs.bgmAudio.volume = audioSettings.volume;
+  refs.bgmAudio.muted = audioSettings.muted || audioSettings.volume <= 0;
+
+  syncAudioControl(refs.volumeSlider, refs.volumeValue, refs.muteButton, volumePercent);
+  syncAudioControl(refs.titleVolumeSlider, refs.titleVolumeValue, refs.titleMuteButton, volumePercent);
+}
+
+function syncAudioControl(slider, value, button, volumePercent) {
+  if (slider) slider.value = String(volumePercent);
+  if (value) value.textContent = `${volumePercent}%`;
+  if (button) {
+    button.textContent = refs.bgmAudio.muted ? "음소거 해제" : "음소거";
+    button.classList.toggle("is-muted", refs.bgmAudio.muted);
+    button.setAttribute("aria-pressed", String(refs.bgmAudio.muted));
+  }
+}
+
+function toggleMute() {
+  audioSettings.muted = !audioSettings.muted;
+  applyAudioSettings();
+  saveAudioSettings();
+  if (!audioSettings.muted) playBgm(currentBgmKey || "title", { silentFail: true });
+}
+
+function handleVolumeInput(event) {
+  const nextVolume = Math.min(100, Math.max(0, Number(event.target.value) || 0)) / 100;
+  audioSettings.volume = nextVolume;
+  audioSettings.muted = nextVolume <= 0;
+  applyAudioSettings();
+  saveAudioSettings();
+  if (!audioSettings.muted) playBgm(currentBgmKey || "title", { silentFail: true });
 }
 
 function getBattleBgmKey() {

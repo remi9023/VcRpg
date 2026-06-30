@@ -11,6 +11,14 @@
       <div class="start-scene">
         <img src="Resource/Title/Title_Image.png" alt="스튜디오 크루 RPG" class="title-image" />
         <button id="startButton" class="start-button" type="button">게임 시작</button>
+        <div class="audio-control start-audio-control" aria-label="타이틀 BGM 설정">
+          <button id="titleMuteButton" class="mute-button" type="button">음소거</button>
+          <label class="volume-control" for="titleVolumeSlider">
+            <span>BGM</span>
+            <input id="titleVolumeSlider" type="range" min="0" max="100" value="45" />
+            <strong id="titleVolumeValue">45%</strong>
+          </label>
+        </div>
       </div>
     </section>
 
@@ -101,6 +109,14 @@
             <button id="saveButton" type="button">저장</button>
             <button id="resetButton" type="button">초기화</button>
             <button id="returnTitleButton" type="button">타이틀</button>
+          </div>
+          <div class="audio-control" aria-label="BGM 설정">
+            <button id="muteButton" class="mute-button" type="button">음소거</button>
+            <label class="volume-control" for="volumeSlider">
+              <span>BGM</span>
+              <input id="volumeSlider" type="range" min="0" max="100" value="45" />
+              <strong id="volumeValue">45%</strong>
+            </label>
           </div>
           <p class="save-state" id="saveStateText">자동 저장 준비 완료</p>
         </article>

@@ -94,6 +94,18 @@ button:disabled {
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.22);
 }
 
+.start-audio-control {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  width: min(320px, calc(100% - 28px));
+  margin-top: 0;
+  border-color: rgba(74, 43, 23, 0.82);
+  background: rgba(255, 247, 229, 0.86);
+  backdrop-filter: blur(4px);
+}
+
 .game-shell {
   display: grid;
   grid-template-rows: auto minmax(250px, 1fr) auto minmax(150px, auto) auto;
@@ -676,7 +688,8 @@ h1 {
 
 #manualWorkButton,
 .action-row button,
-.settings-row button {
+.settings-row button,
+.mute-button {
   min-height: 38px;
   padding: 8px 12px;
   border: 2px solid #4a2b17;
@@ -690,8 +703,13 @@ h1 {
 
 #manualWorkButton:hover,
 .action-row button:hover,
-.settings-row button:hover {
+.settings-row button:hover,
+.mute-button:hover {
   background: linear-gradient(180deg, #ffd780 0%, var(--accent-strong) 100%);
+}
+
+.mute-button.is-muted {
+  background: linear-gradient(180deg, #8b9b92 0%, #42554d 100%);
 }
 
 .panel-area {
@@ -750,6 +768,45 @@ h1 {
 
 .settings-row {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.audio-control {
+  display: grid;
+  grid-template-columns: minmax(92px, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 247, 229, 0.78);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.volume-control {
+  display: grid;
+  grid-template-columns: auto minmax(90px, 1fr) 42px;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.volume-control input {
+  width: 100%;
+  accent-color: var(--good);
+}
+
+.volume-control strong {
+  color: var(--ink);
+  text-align: right;
+}
+
+.audio-control.start-audio-control {
+  margin-top: 0;
+  border-color: rgba(74, 43, 23, 0.82);
+  background: rgba(255, 247, 229, 0.86);
 }
 
 .shop-list {
@@ -821,6 +878,13 @@ h1 {
     bottom: 32px;
   }
 
+  .start-audio-control {
+    top: 12px;
+    right: 50%;
+    width: min(92vw, 320px);
+    transform: translateX(50%);
+  }
+
   .game-shell {
     grid-template-rows: auto minmax(230px, 1fr) auto minmax(160px, auto) auto;
   }
@@ -842,6 +906,10 @@ h1 {
   .title-return-button {
     justify-self: end;
     min-width: 96px;
+  }
+
+  .audio-control {
+    grid-template-columns: 1fr;
   }
 
   .enemy {

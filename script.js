@@ -623,7 +623,7 @@ function getPlayerUnit(power = state.playerLevel) {
     shortName: "대표",
     mark: "C",
     color: "#059669",
-    spriteSheet: "Anim/Motion.JPG",
+    spriteSheet: "Anim/Motion.png",
     count: 1,
     power,
     attackType: "code",

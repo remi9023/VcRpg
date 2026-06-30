@@ -103,6 +103,7 @@ let gameTimer = null;
 let enemySeq = 0;
 let currentBgmKey = "title";
 let hasStartedGame = false;
+let titleBgmUnlockArmed = false;
 
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initGame);
@@ -137,6 +138,7 @@ function initGame() {
     nextStageButton: document.querySelector("#nextStageButton"),
     saveButton: document.querySelector("#saveButton"),
     resetButton: document.querySelector("#resetButton"),
+    returnTitleButton: document.querySelector("#returnTitleButton"),
     bgmAudio: document.querySelector("#bgmAudio"),
   };
 
@@ -147,6 +149,8 @@ function initGame() {
 
   bindEvents();
   renderAll();
+  playBgm("title", { silentFail: true });
+  armTitleBgmUnlock();
 }
 
 function bindEvents() {
@@ -171,6 +175,7 @@ function bindEvents() {
   });
   refs.saveButton.addEventListener("click", () => saveState("수동 저장 완료"));
   refs.resetButton.addEventListener("click", resetGame);
+  refs.returnTitleButton.addEventListener("click", returnToTitle);
   refs.startButton.addEventListener("click", startGame);
 }
 
@@ -183,7 +188,16 @@ function startGame() {
   startLoop();
 }
 
-function playBgm(trackKey) {
+function returnToTitle() {
+  hasStartedGame = false;
+  stopLoop();
+  refs.gameShell.classList.add("is-hidden");
+  refs.startScreen.classList.remove("is-hidden");
+  playBgm("title");
+  armTitleBgmUnlock();
+}
+
+function playBgm(trackKey, options = {}) {
   if (!refs.bgmAudio) return;
 
   const nextSrc = BGM_TRACKS[trackKey] || BGM_TRACKS.title;
@@ -198,13 +212,28 @@ function playBgm(trackKey) {
   const playPromise = refs.bgmAudio.play();
   if (playPromise && typeof playPromise.catch === "function") {
     playPromise.catch(() => {
-      log("BGM 재생이 브라우저에서 차단되었습니다.");
+      if (!options.silentFail) log("BGM 재생이 브라우저에서 차단되었습니다.");
     });
   }
 }
 
 function getBattleBgmKey() {
   return state.battleMode === "boss" ? "boss" : "field";
+}
+
+function armTitleBgmUnlock() {
+  if (titleBgmUnlockArmed) return;
+
+  titleBgmUnlockArmed = true;
+  const unlock = () => {
+    titleBgmUnlockArmed = false;
+    if (!hasStartedGame) playBgm("title", { silentFail: true });
+    window.removeEventListener("pointerdown", unlock);
+    window.removeEventListener("keydown", unlock);
+  };
+
+  window.addEventListener("pointerdown", unlock, { once: true });
+  window.addEventListener("keydown", unlock, { once: true });
 }
 
 function startLoop() {
@@ -216,6 +245,12 @@ function startLoop() {
     lastTick = now;
     tick(delta);
   }, TICK_RATE);
+}
+
+function stopLoop() {
+  if (!gameTimer) return;
+  window.clearInterval(gameTimer);
+  gameTimer = null;
 }
 
 function tick(delta) {

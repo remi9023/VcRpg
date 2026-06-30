@@ -692,6 +692,10 @@ h1 {
   margin-top: 10px;
 }
 
+.settings-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .shop-list {
   display: grid;
   gap: 8px;

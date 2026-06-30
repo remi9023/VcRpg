@@ -107,9 +107,9 @@ button:disabled {
 
 .start-hero-sprite {
   image-rendering: pixelated;
-  background-image: url("assets/hero-sprite.png"), url("assets/player.svg");
+  background-image: url("Anim/Motion.JPG"), url("assets/player.svg");
   background-repeat: no-repeat;
-  background-size: 288px 96px, contain;
+  background-size: 300% 100%, contain;
   background-position: 0 0, center;
 }
 
@@ -293,7 +293,7 @@ h1 {
 }
 
 .ally.is-attacking .ally-sprite-sheet {
-  background-position: -64px 0;
+  background-position: 50% 0, center;
 }
 
 .ally.is-skill {
@@ -301,7 +301,7 @@ h1 {
 }
 
 .ally.is-skill .ally-sprite-sheet {
-  background-position: -128px 0;
+  background-position: 100% 0, center;
 }
 
 .ally.is-slashing {
@@ -338,7 +338,7 @@ h1 {
   image-rendering: pixelated;
   background-image: var(--sprite-url), url("assets/player.svg");
   background-repeat: no-repeat;
-  background-size: 192px 64px, contain;
+  background-size: 300% 100%, contain;
   background-position: 0 0, center;
   filter: drop-shadow(0 7px 0 rgba(0, 0, 0, 0.16));
 }
@@ -864,7 +864,7 @@ h1 {
     left: 7%;
     width: 76px;
     height: 76px;
-    background-size: 228px 76px;
+    background-size: 300% 100%, contain;
   }
 
   .start-enemy {
@@ -920,15 +920,15 @@ h1 {
   .ally-sprite-sheet {
     width: 54px;
     height: 54px;
-    background-size: 162px 54px;
+    background-size: 300% 100%, contain;
   }
 
   .ally.is-attacking .ally-sprite-sheet {
-    background-position: -54px 0;
+    background-position: 50% 0, center;
   }
 
   .ally.is-skill .ally-sprite-sheet {
-    background-position: -108px 0;
+    background-position: 100% 0, center;
   }
 
   .ally-role {

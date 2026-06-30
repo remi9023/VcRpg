@@ -414,7 +414,7 @@ function castSkill(unit, from) {
   const targets = getSkillTargets(unit.skill);
   if (!targets.length) return;
 
-  pulseUnit(unit.id, "is-attacking", 420);
+  pulseUnit(unit.id, "is-skill", 520);
   playSkillEffect(unit, targets);
 
   targets.forEach((target, index) => {
@@ -609,7 +609,7 @@ function getPlayerUnit(power = state.playerLevel) {
     shortName: "대표",
     mark: "C",
     color: "#059669",
-    sprite: "assets/player.svg",
+    spriteSheet: "assets/hero-sprite.png",
     count: 1,
     power,
     attackType: "code",
@@ -782,7 +782,9 @@ function renderAllies() {
     .map((unit, index) => {
       const position = getAllyPosition(index);
       const countText = unit.count > 1 ? ` x${unit.count}` : "";
-      const spriteMarkup = unit.sprite
+      const spriteMarkup = unit.spriteSheet
+        ? `<span class="ally-sprite-sheet" role="img" aria-label="${unit.name}" style="--sprite-url: url('${unit.spriteSheet}')"></span>`
+        : unit.sprite
         ? `<img src="${unit.sprite}" alt="${unit.name}" class="ally-sprite-image" />`
         : `<span class="ally-sprite">${unit.mark}</span>`;
       return `

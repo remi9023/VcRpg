@@ -99,9 +99,18 @@ button:disabled {
 .start-hero {
   left: 10%;
   bottom: 18%;
-  width: 92px;
+  width: 96px;
+  height: 96px;
   filter: drop-shadow(0 7px 0 rgba(0, 0, 0, 0.18));
   animation: start-hero-ready 1.1s ease-in-out infinite;
+}
+
+.start-hero-sprite {
+  image-rendering: pixelated;
+  background-image: url("assets/hero-sprite.png"), url("assets/player.svg");
+  background-repeat: no-repeat;
+  background-size: 288px 96px, contain;
+  background-position: 0 0, center;
 }
 
 .start-enemy {
@@ -283,6 +292,18 @@ h1 {
   animation: ally-ranged-attack 0.32s ease-out;
 }
 
+.ally.is-attacking .ally-sprite-sheet {
+  background-position: -64px 0;
+}
+
+.ally.is-skill {
+  animation: ally-ranged-attack 0.52s ease-out;
+}
+
+.ally.is-skill .ally-sprite-sheet {
+  background-position: -128px 0;
+}
+
 .ally.is-slashing {
   left: var(--slash-x);
   transform: translateX(-50%) scale(1.06);
@@ -307,6 +328,18 @@ h1 {
   width: 66px;
   height: 82px;
   object-fit: contain;
+  filter: drop-shadow(0 7px 0 rgba(0, 0, 0, 0.16));
+}
+
+.ally-sprite-sheet {
+  display: block;
+  width: 64px;
+  height: 64px;
+  image-rendering: pixelated;
+  background-image: var(--sprite-url), url("assets/player.svg");
+  background-repeat: no-repeat;
+  background-size: 192px 64px, contain;
+  background-position: 0 0, center;
   filter: drop-shadow(0 7px 0 rgba(0, 0, 0, 0.16));
 }
 
@@ -829,7 +862,9 @@ h1 {
 
   .start-hero {
     left: 7%;
-    width: 72px;
+    width: 76px;
+    height: 76px;
+    background-size: 228px 76px;
   }
 
   .start-enemy {
@@ -880,6 +915,20 @@ h1 {
   .ally-sprite-image {
     width: 54px;
     height: 68px;
+  }
+
+  .ally-sprite-sheet {
+    width: 54px;
+    height: 54px;
+    background-size: 162px 54px;
+  }
+
+  .ally.is-attacking .ally-sprite-sheet {
+    background-position: -54px 0;
+  }
+
+  .ally.is-skill .ally-sprite-sheet {
+    background-position: -108px 0;
   }
 
   .ally-role {

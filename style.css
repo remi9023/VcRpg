@@ -229,7 +229,7 @@ h1 {
 }
 
 .ally.is-attacking .ally-sprite-sheet {
-  background-position: 50% 0, center;
+  background-position: 50% 0;
 }
 
 .ally.is-skill {
@@ -237,7 +237,7 @@ h1 {
 }
 
 .ally.is-skill .ally-sprite-sheet {
-  background-position: 100% 0, center;
+  background-position: 100% 0;
 }
 
 .ally.is-slashing {
@@ -272,10 +272,10 @@ h1 {
   width: 64px;
   height: 64px;
   image-rendering: pixelated;
-  background-image: var(--sprite-url), url("assets/player.svg");
+  background-image: var(--sprite-url);
   background-repeat: no-repeat;
-  background-size: 300% 100%, contain;
-  background-position: 0 0, center;
+  background-size: 300% 100%;
+  background-position: 0 0;
   filter: drop-shadow(0 7px 0 rgba(0, 0, 0, 0.16));
 }
 
@@ -812,11 +812,11 @@ h1 {
   }
 
   .ally.is-attacking .ally-sprite-sheet {
-    background-position: 50% 0, center;
+    background-position: 50% 0;
   }
 
   .ally.is-skill .ally-sprite-sheet {
-    background-position: 100% 0, center;
+    background-position: 100% 0;
   }
 
   .ally-role {

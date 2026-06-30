@@ -6,6 +6,11 @@ const NORMAL_STAGES_PER_CHAPTER = 5;
 const BASIC_ATTACK_RATE = 1;
 const SKILL_ATTACK_RATE = 4;
 const TICK_RATE = 1000 / 30;
+const BGM_TRACKS = {
+  title: "Resource/Sound/BGM_Main_Theme.mp3",
+  field: "Resource/Sound/BGM_Field.mp3",
+  boss: "Resource/Sound/BGM_Boss.mp3",
+};
 
 const recruits = [
   {
@@ -96,6 +101,8 @@ let saveCooldown = 0;
 let lastTick = Date.now();
 let gameTimer = null;
 let enemySeq = 0;
+let currentBgmKey = "title";
+let hasStartedGame = false;
 
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initGame);
@@ -168,15 +175,24 @@ function bindEvents() {
 }
 
 function startGame() {
+  hasStartedGame = true;
   refs.startScreen.classList.add("is-hidden");
   refs.gameShell.classList.remove("is-hidden");
-  playBgm();
+  playBgm(getBattleBgmKey());
   renderAll();
   startLoop();
 }
 
-function playBgm() {
+function playBgm(trackKey) {
   if (!refs.bgmAudio) return;
+
+  const nextSrc = BGM_TRACKS[trackKey] || BGM_TRACKS.title;
+  const nextUrl = new URL(nextSrc, window.location.href).href;
+  if (currentBgmKey !== trackKey || refs.bgmAudio.src !== nextUrl) {
+    refs.bgmAudio.src = nextSrc;
+    refs.bgmAudio.load();
+    currentBgmKey = trackKey;
+  }
 
   refs.bgmAudio.volume = 0.45;
   const playPromise = refs.bgmAudio.play();
@@ -185,6 +201,10 @@ function playBgm() {
       log("BGM 재생이 브라우저에서 차단되었습니다.");
     });
   }
+}
+
+function getBattleBgmKey() {
+  return state.battleMode === "boss" ? "boss" : "field";
 }
 
 function startLoop() {
@@ -304,6 +324,7 @@ function spawnWave() {
   isSpawningNext = false;
   basicAttackCooldown = 0.35;
   skillAttackCooldown = SKILL_ATTACK_RATE;
+  if (hasStartedGame) playBgm(getBattleBgmKey());
   log(`${getProgressLabel()} ${state.battleMode === "boss" ? "보스" : "업무"}가 오른쪽에서 접근합니다.`);
 }
 

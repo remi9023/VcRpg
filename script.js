@@ -201,8 +201,11 @@ function bindEvents() {
   refs.returnTitleButton.addEventListener("click", returnToTitle);
   refs.headerTitleButton.addEventListener("click", returnToTitle);
   refs.startButton.addEventListener("click", startGame);
-  refs.audioMuteButtons.forEach((button) => button.addEventListener("click", toggleMute));
-  refs.audioVolumeSliders.forEach((slider) => slider.addEventListener("input", handleVolumeInput));
+  document.addEventListener("click", (event) => {
+    if (event.target.closest("[data-audio-mute]")) toggleMute();
+  });
+  document.addEventListener("input", handleAudioInput);
+  document.addEventListener("change", handleAudioInput);
 }
 
 function startGame() {
@@ -272,22 +275,25 @@ function saveAudioSettings() {
 }
 
 function applyAudioSettings() {
-  if (!refs.bgmAudio) return;
-
   const volumePercent = Math.round(audioSettings.volume * 100);
-  refs.bgmAudio.volume = audioSettings.volume;
-  refs.bgmAudio.muted = audioSettings.muted || audioSettings.volume <= 0;
+  const isMuted = audioSettings.muted || audioSettings.volume <= 0;
+
+  if (refs.bgmAudio) {
+    refs.bgmAudio.volume = audioSettings.volume;
+    refs.bgmAudio.muted = isMuted;
+  }
 
   refs.audioVolumeSliders.forEach((slider) => {
     slider.value = String(volumePercent);
+    slider.setAttribute("aria-valuetext", `${volumePercent}%`);
   });
   refs.audioVolumeValues.forEach((value) => {
     value.textContent = `${volumePercent}%`;
   });
   refs.audioMuteButtons.forEach((button) => {
-    button.textContent = refs.bgmAudio.muted ? "음소거 해제" : "음소거";
-    button.classList.toggle("is-muted", refs.bgmAudio.muted);
-    button.setAttribute("aria-pressed", String(refs.bgmAudio.muted));
+    button.textContent = isMuted ? "음소거 해제" : "음소거";
+    button.classList.toggle("is-muted", isMuted);
+    button.setAttribute("aria-pressed", String(isMuted));
   });
 }
 
@@ -302,8 +308,11 @@ function toggleMute() {
   if (!audioSettings.muted) playBgm(currentBgmKey || "title", { silentFail: true });
 }
 
-function handleVolumeInput(event) {
-  const nextVolume = Math.min(100, Math.max(0, Number(event.target.value) || 0)) / 100;
+function handleAudioInput(event) {
+  const slider = event.target.closest("[data-audio-volume]");
+  if (!slider) return;
+
+  const nextVolume = Math.min(100, Math.max(0, Number(slider.value) || 0)) / 100;
   audioSettings.volume = nextVolume;
   audioSettings.muted = nextVolume <= 0;
   applyAudioSettings();

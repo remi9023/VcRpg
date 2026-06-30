@@ -119,6 +119,7 @@ button:disabled {
 
 .top-bar {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
@@ -809,6 +810,27 @@ h1 {
   background: rgba(255, 247, 229, 0.86);
 }
 
+.hud-audio-control {
+  grid-template-columns: auto minmax(126px, 1fr);
+  width: min(100%, 250px);
+  margin-top: 0;
+  padding: 6px;
+  gap: 7px;
+  background: rgba(255, 247, 229, 0.72);
+}
+
+.hud-audio-control .mute-button {
+  min-height: 32px;
+  padding: 5px 8px;
+  font-size: 12px;
+}
+
+.hud-volume-control {
+  grid-template-columns: auto minmax(64px, 1fr) 38px;
+  gap: 6px;
+  font-size: 12px;
+}
+
 .shop-list {
   display: grid;
   gap: 8px;
@@ -906,6 +928,10 @@ h1 {
   .title-return-button {
     justify-self: end;
     min-width: 96px;
+  }
+
+  .hud-audio-control {
+    width: 100%;
   }
 
   .audio-control {

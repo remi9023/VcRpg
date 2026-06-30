@@ -157,6 +157,9 @@ function initGame() {
     muteButton: document.querySelector("#muteButton"),
     volumeSlider: document.querySelector("#volumeSlider"),
     volumeValue: document.querySelector("#volumeValue"),
+    audioMuteButtons: [...document.querySelectorAll("[data-audio-mute]")],
+    audioVolumeSliders: [...document.querySelectorAll("[data-audio-volume]")],
+    audioVolumeValues: [...document.querySelectorAll("[data-audio-value]")],
     bgmAudio: document.querySelector("#bgmAudio"),
   };
 
@@ -198,10 +201,8 @@ function bindEvents() {
   refs.returnTitleButton.addEventListener("click", returnToTitle);
   refs.headerTitleButton.addEventListener("click", returnToTitle);
   refs.startButton.addEventListener("click", startGame);
-  refs.muteButton.addEventListener("click", toggleMute);
-  refs.volumeSlider.addEventListener("input", handleVolumeInput);
-  refs.titleMuteButton.addEventListener("click", toggleMute);
-  refs.titleVolumeSlider.addEventListener("input", handleVolumeInput);
+  refs.audioMuteButtons.forEach((button) => button.addEventListener("click", toggleMute));
+  refs.audioVolumeSliders.forEach((slider) => slider.addEventListener("input", handleVolumeInput));
 }
 
 function startGame() {
@@ -277,22 +278,25 @@ function applyAudioSettings() {
   refs.bgmAudio.volume = audioSettings.volume;
   refs.bgmAudio.muted = audioSettings.muted || audioSettings.volume <= 0;
 
-  syncAudioControl(refs.volumeSlider, refs.volumeValue, refs.muteButton, volumePercent);
-  syncAudioControl(refs.titleVolumeSlider, refs.titleVolumeValue, refs.titleMuteButton, volumePercent);
-}
-
-function syncAudioControl(slider, value, button, volumePercent) {
-  if (slider) slider.value = String(volumePercent);
-  if (value) value.textContent = `${volumePercent}%`;
-  if (button) {
+  refs.audioVolumeSliders.forEach((slider) => {
+    slider.value = String(volumePercent);
+  });
+  refs.audioVolumeValues.forEach((value) => {
+    value.textContent = `${volumePercent}%`;
+  });
+  refs.audioMuteButtons.forEach((button) => {
     button.textContent = refs.bgmAudio.muted ? "음소거 해제" : "음소거";
     button.classList.toggle("is-muted", refs.bgmAudio.muted);
     button.setAttribute("aria-pressed", String(refs.bgmAudio.muted));
-  }
+  });
 }
 
 function toggleMute() {
-  audioSettings.muted = !audioSettings.muted;
+  const shouldUnmute = audioSettings.muted || audioSettings.volume <= 0;
+  audioSettings.muted = !shouldUnmute;
+  if (shouldUnmute && audioSettings.volume <= 0) {
+    audioSettings.volume = defaultAudioSettings.volume;
+  }
   applyAudioSettings();
   saveAudioSettings();
   if (!audioSettings.muted) playBgm(currentBgmKey || "title", { silentFail: true });

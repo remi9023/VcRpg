@@ -129,6 +129,7 @@ function initGame() {
     nextStageButton: document.querySelector("#nextStageButton"),
     saveButton: document.querySelector("#saveButton"),
     resetButton: document.querySelector("#resetButton"),
+    bgmAudio: document.querySelector("#bgmAudio"),
   };
 
   state = loadState();
@@ -168,8 +169,21 @@ function bindEvents() {
 function startGame() {
   refs.startScreen.classList.add("is-hidden");
   refs.gameShell.classList.remove("is-hidden");
+  playBgm();
   renderAll();
   startLoop();
+}
+
+function playBgm() {
+  if (!refs.bgmAudio) return;
+
+  refs.bgmAudio.volume = 0.45;
+  const playPromise = refs.bgmAudio.play();
+  if (playPromise && typeof playPromise.catch === "function") {
+    playPromise.catch(() => {
+      log("BGM 재생이 브라우저에서 차단되었습니다.");
+    });
+  }
 }
 
 function startLoop() {
